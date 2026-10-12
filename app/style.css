@@ -1,0 +1,417 @@
+:root {
+  font-family: Arial, Helvetica, sans-serif;
+  color: #213047;
+  background: #f4f7fb;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+.shell {
+  max-width: 1440px;
+  margin: auto;
+  padding: 30px 26px 70px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 22px;
+}
+h1 {
+  font-size: 32px;
+  letter-spacing: -1px;
+  margin: 6px 0;
+}
+h2 {
+  font-size: 19px;
+  margin: 0;
+}
+h3 {
+  font-size: 15px;
+}
+p {
+  color: #64748b;
+  line-height: 1.5;
+  margin: 8px 0;
+}
+.eyebrow {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #0e9b83;
+  font-weight: 800;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.btn,
+.sidehead button {
+  background: #118d79;
+  color: white;
+  border: 0;
+  border-radius: 9px;
+  padding: 11px 16px;
+  font-weight: 700;
+}
+.btn.secondary {
+  background: white;
+  color: #334155;
+  border: 1px solid #d9e1e9;
+}
+.toolbar,
+.meta {
+  display: flex;
+  gap: 14px;
+  align-items: end;
+  background: white;
+  border: 1px solid #e3e9f0;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+.toolbar label,
+.meta label,
+.barfields label,
+.chordrow label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #53657a;
+}
+input,
+select {
+  border: 1px solid #d7e0e9;
+  border-radius: 8px;
+  background: #fff;
+  color: #213047;
+  padding: 10px;
+  min-width: 0;
+}
+.toolbar select {
+  min-width: 165px;
+}
+.meta input {
+  min-width: 140px;
+}
+.hint {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+}
+.mode {
+  padding: 11px;
+  border-radius: 8px;
+  background: #e7f7f2;
+  color: #0e796a;
+  font-size: 13px;
+  font-weight: 700;
+}
+.notice {
+  border: 1px solid #f1dcaa;
+  background: #fffae9;
+  color: #805b20;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 18px;
+  line-height: 1.6;
+}
+.workspace {
+  display: grid;
+  grid-template-columns: 245px minmax(0, 1fr);
+  gap: 17px;
+}
+.panel {
+  background: white;
+  border: 1px solid #e0e7ef;
+  border-radius: 13px;
+  padding: 20px;
+  min-width: 0;
+}
+.sidebar {
+  align-self: start;
+}
+.sidehead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.sidehead button {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+.sidehead button.danger,
+.danger {
+  background: #fff1f2;
+  color: #c13650;
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 12px;
+}
+.barlist {
+  max-height: 70vh;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+}
+.barlist button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid transparent;
+  background: #f5f7fb;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: left;
+  color: #334155;
+}
+.barlist button span {
+  font-size: 11px;
+  color: #8a98aa;
+}
+.barlist button.active {
+  border-color: #18a28b;
+  background: #e7f7f2;
+  color: #087c69;
+}
+.barfields {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+.tabheading {
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.tabheading small {
+  font-weight: 400;
+  color: #8795a7;
+  display: block;
+  margin-top: 4px;
+}
+.tabpreview {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 18px 16px;
+  margin-bottom: 25px;
+  overflow: auto;
+}
+.stringrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 31px;
+}
+.stringrow > span {
+  font-size: 12px;
+  color: #64748b;
+  width: 16px;
+}
+.stringline {
+  height: 1px;
+  background: #a7b5c6;
+  position: relative;
+  flex: 1;
+}
+.fret {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #d8f4e9;
+  color: #075b4c;
+  font-weight: 800;
+  font-size: 13px;
+  min-width: 22px;
+  text-align: center;
+  border-radius: 4px;
+  padding: 3px 5px;
+}
+.notes {
+  display: grid;
+  gap: 7px;
+}
+.notehead,
+.noterow {
+  display: grid;
+  grid-template-columns:
+    minmax(65px, 0.8fr)
+    minmax(65px, 0.8fr)
+    minmax(85px, 1fr)
+    minmax(95px, 1.2fr)
+    minmax(95px, 1.2fr)
+    35px;
+  gap: 9px;
+  align-items: center;
+}
+.notehead {
+  font-size: 11px;
+  color: #718096;
+}
+.noterow input,
+.noterow select {
+  width: 100%;
+  padding: 9px;
+}
+.noterow button {
+  font-size: 20px;
+  padding: 5px;
+}
+.chordeditor {
+  display: grid;
+  gap: 10px;
+}
+.chordrow {
+  display: grid;
+  grid-template-columns: 150px 1fr 2fr 34px;
+  gap: 10px;
+  align-items: end;
+  padding: 10px;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+.chordrow input {
+  width: 100%;
+}
+.sectiontitle {
+  margin: 22px 0 5px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 9px;
+  color: #0e8e79;
+}
+.raw {
+  max-height: 65vh;
+  overflow: auto;
+  display: grid;
+  gap: 3px;
+}
+.raw > div {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 12px;
+  background: #f8fafc;
+  border-radius: 5px;
+}
+.raw code {
+  color: #7d899a;
+  font-size: 12px;
+}
+.alert {
+  background: #fee2e2;
+  padding: 14px;
+  border-radius: 9px;
+  margin-bottom: 15px;
+  color: #9f1239;
+}
+footer {
+  font-size: 12px;
+  color: #8491a1;
+  margin-top: 30px;
+}
+@media (max-width: 780px) {
+  .shell {
+    padding: 18px 12px;
+  }
+  header {
+    display: block;
+  }
+  .actions {
+    margin-top: 15px;
+  }
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+  .barlist {
+    display: flex;
+    overflow: auto;
+  }
+  .barlist button {
+    min-width: 105px;
+  }
+  .chordrow {
+    grid-template-columns: 1fr 1fr;
+  }
+  .chordrow label:nth-child(3) {
+    grid-column: 1/-1;
+  }
+  .notehead {
+    font-size: 9px;
+  }
+}
+
+/* Optional lyrics/annotations, stored separately for each melody bar */
+.barlyrics {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 18px 0;
+  font-weight: 600;
+  color: #334155;
+}
+.barlyrics small {
+  font-weight: 400;
+  color: #718096;
+}
+.barlyrics textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  background: white;
+  color: #1e293b;
+  font: inherit;
+  font-weight: 400;
+  line-height: 1.5;
+}
+.barlyrics textarea:focus {
+  outline: 2px solid #0d9488;
+  outline-offset: 1px;
+}
+/* Draggable guitar notes */
+.fret {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  z-index: 1;
+}
+
+.fret:hover {
+  background: #a9ead3;
+  box-shadow: 0 0 0 2px #0d9488;
+  z-index: 2;
+}
+
+.fret:active {
+  cursor: grabbing;
+  background: #6ee7b7;
+  z-index: 3;
+}
+
+/* Keep note editor usable on smaller screens */
+.notes {
+  overflow-x: auto;
+}
+
+.notehead,
+.noterow {
+  min-width: 580px;
+}

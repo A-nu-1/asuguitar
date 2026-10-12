@@ -1,0 +1,195 @@
+{
+  "source": "All I Want For Christmas Is You Chords (.pdf",
+  "methods": {
+    "pymupdf": {
+      "status": "ok",
+      "tokens": 539,
+      "digit_tokens": 16,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "Di!culty:",
+          "x": 56.64,
+          "y": 92.5,
+          "page": 1
+        },
+        {
+          "text": "intermediate",
+          "x": 101.72,
+          "y": 92.5,
+          "page": 1
+        },
+        {
+          "text": "Tuning:",
+          "x": 56.64,
+          "y": 107.49,
+          "page": 1
+        },
+        {
+          "text": "E",
+          "x": 92.76,
+          "y": 107.49,
+          "page": 1
+        },
+        {
+          "text": "A",
+          "x": 100.71,
+          "y": 107.49,
+          "page": 1
+        }
+      ]
+    },
+    "pdfplumber": {
+      "status": "ok",
+      "tokens": 539,
+      "digit_tokens": 16,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "All",
+          "x": 56.64,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "I",
+          "x": 81.75,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "Want",
+          "x": 91.43,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "For",
+          "x": 140.13,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "Christmas",
+          "x": 172.23,
+          "y": 43.74,
+          "page": 1
+        }
+      ]
+    },
+    "pdfminer": {
+      "status": "ok",
+      "tokens": 1903,
+      "digit_tokens": 34,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "A",
+          "x": 56.64,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "l",
+          "x": 68.01,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "l",
+          "x": 72.55,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "I",
+          "x": 81.75,
+          "y": 43.74,
+          "page": 1
+        },
+        {
+          "text": "W",
+          "x": 91.43,
+          "y": 43.74,
+          "page": 1
+        }
+      ]
+    },
+    "pypdf_layout": {
+      "status": "ok",
+      "tokens": 142,
+      "digit_tokens": 0,
+      "has_coordinates": false,
+      "sample": [
+        {
+          "text": "All I Want For Christmas Is You Chords by Mariah",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "Carey",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "Di!culty: intermediate",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "Tuning: E A D G B E",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "Key: G",
+          "x": null,
+          "y": null,
+          "page": 1
+        }
+      ]
+    },
+    "poppler_bbox": {
+      "status": "ok",
+      "tokens": 539,
+      "digit_tokens": 16,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "All",
+          "x": 56.64,
+          "y": 37.23,
+          "page": 1
+        },
+        {
+          "text": "I",
+          "x": 81.75,
+          "y": 37.23,
+          "page": 1
+        },
+        {
+          "text": "Want",
+          "x": 91.43,
+          "y": 37.23,
+          "page": 1
+        },
+        {
+          "text": "For",
+          "x": 140.13,
+          "y": 37.23,
+          "page": 1
+        },
+        {
+          "text": "Christmas",
+          "x": 172.23,
+          "y": 37.23,
+          "page": 1
+        }
+      ]
+    }
+  }
+}

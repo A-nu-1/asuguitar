@@ -1,0 +1,195 @@
+{
+  "source": "7 Years (1).pdf",
+  "methods": {
+    "pymupdf": {
+      "status": "ok",
+      "tokens": 225,
+      "digit_tokens": 208,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "3",
+          "x": 225.12,
+          "y": 533.93,
+          "page": 1
+        },
+        {
+          "text": "1",
+          "x": 233.41,
+          "y": 983.93,
+          "page": 1
+        },
+        {
+          "text": "0",
+          "x": 510.18,
+          "y": 880.93,
+          "page": 1
+        },
+        {
+          "text": "1",
+          "x": 254.14,
+          "y": 866.93,
+          "page": 1
+        },
+        {
+          "text": "5",
+          "x": 216.24,
+          "y": 418.93,
+          "page": 1
+        }
+      ]
+    },
+    "pdfplumber": {
+      "status": "ok",
+      "tokens": 225,
+      "digit_tokens": 208,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "7",
+          "x": 399.66,
+          "y": 42.11,
+          "page": 1
+        },
+        {
+          "text": "Years",
+          "x": 419.68,
+          "y": 42.11,
+          "page": 1
+        },
+        {
+          "text": "=",
+          "x": 162.98,
+          "y": 123.58,
+          "page": 1
+        },
+        {
+          "text": "120",
+          "x": 174.97,
+          "y": 123.58,
+          "page": 1
+        },
+        {
+          "text": "Intro",
+          "x": 157.98,
+          "y": 144.6,
+          "page": 1
+        }
+      ]
+    },
+    "pdfminer": {
+      "status": "ok",
+      "tokens": 295,
+      "digit_tokens": 236,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "7",
+          "x": 399.66,
+          "y": 42.11,
+          "page": 1
+        },
+        {
+          "text": "Y",
+          "x": 419.68,
+          "y": 42.11,
+          "page": 1
+        },
+        {
+          "text": "e",
+          "x": 432.57,
+          "y": 42.11,
+          "page": 1
+        },
+        {
+          "text": "a",
+          "x": 445.46,
+          "y": 42.11,
+          "page": 1
+        },
+        {
+          "text": "r",
+          "x": 458.34,
+          "y": 42.11,
+          "page": 1
+        }
+      ]
+    },
+    "pypdf_layout": {
+      "status": "ok",
+      "tokens": 31,
+      "digit_tokens": 0,
+      "has_coordinates": false,
+      "sample": [
+        {
+          "text": "                                                           7 Years",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "                   = 120",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "                  Intro",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "                  mf",
+          "x": null,
+          "y": null,
+          "page": 1
+        },
+        {
+          "text": "                 1 6       5      3     1    2         1            1     3      1   6    5    3   1  4        1             1",
+          "x": null,
+          "y": null,
+          "page": 1
+        }
+      ]
+    },
+    "poppler_bbox": {
+      "status": "ok",
+      "tokens": 225,
+      "digit_tokens": 208,
+      "has_coordinates": true,
+      "sample": [
+        {
+          "text": "7",
+          "x": 399.66,
+          "y": 38.15,
+          "page": 1
+        },
+        {
+          "text": "Years",
+          "x": 419.68,
+          "y": 38.15,
+          "page": 1
+        },
+        {
+          "text": "=",
+          "x": 162.98,
+          "y": 122.18,
+          "page": 1
+        },
+        {
+          "text": "120",
+          "x": 174.97,
+          "y": 122.18,
+          "page": 1
+        },
+        {
+          "text": "Intro",
+          "x": 157.98,
+          "y": 142.44,
+          "page": 1
+        }
+      ]
+    }
+  }
+}
