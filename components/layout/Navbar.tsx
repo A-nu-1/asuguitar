@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 
 export default function Navbar() {
@@ -12,10 +13,17 @@ export default function Navbar() {
           <span>Asu Guitar Lab</span>
         </Link>
 
-        <div className="flex items-center gap-5 text-sm font-medium">
+        <div className="flex flex-wrap items-center gap-5 text-sm font-medium">
           <Link href="/" className="text-slate-600 hover:text-teal-700">
             Home
           </Link>
+
+          <Link
+  href="/add"
+  className="rounded-lg bg-teal-600 px-4 py-2 font-semibold text-white hover:bg-teal-700"
+>
+  + Add Song
+</Link>
 
           <Link href="/melody" className="text-slate-600 hover:text-teal-700">
             Melody
@@ -27,6 +35,14 @@ export default function Navbar() {
 
           <Link href="/lab" className="text-slate-600 hover:text-teal-700">
             Lab
+          </Link>
+
+          <Link href="/practice" className="text-slate-600 hover:text-teal-700">
+            Practice
+          </Link>
+
+          <Link href="/extraction-test" className="text-slate-600 hover:text-teal-700">
+            Extraction
           </Link>
         </div>
       </div>

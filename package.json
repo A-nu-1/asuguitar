@@ -1,6 +1,7 @@
 {
   "name": "asuguitar",
   "version": "0.1.0",
+  "main": "electron/main.cjs",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,6 +20,7 @@
     "@types/node": "^22.0.0",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
+    "electron": "^44.7.1",
     "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0"

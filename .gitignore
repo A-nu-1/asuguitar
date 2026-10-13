@@ -9,3 +9,28 @@ build/
 *.key
 .vercel/
 *.tsbuildinfo
+
+# Dependencies
+/node_modules
+
+# Next.js generated files
+/.next/
+/out/
+
+# Environment variables
+.env*
+!.env.example
+
+# Local guitar data
+/local-pdfs/
+/data/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+
+# Electron packages
+/dist/
+/release/
