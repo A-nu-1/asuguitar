@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Bar, Note, Song } from "@/types/guitar";
 type Props = {
   song: Song;
@@ -36,6 +36,7 @@ export default function MelodyEditor({
   onSelectPdf,
 }: Props) {
   const [selected, setSelected] = useState(0);
+  const draggingNoteId = useRef<string | null>(null);
   const active = song.bars[selected];
 
   function createEmptyBar(): Bar {
@@ -143,49 +144,51 @@ export default function MelodyEditor({
                 Delete bar
               </button>
             </div>
-           
-<details className="sourcepdf">
-  <summary>Compare with original PDF (click to expand)</summary>
 
-  <div className="mt-3 space-y-3">
-    <label className="block text-sm">
-      Select original PDF for comparison
+            <details className="sourcepdf">
+              <summary>Compare with original PDF (click to expand)</summary>
 
-      <input
-        type="file"
-        accept=".pdf,application/pdf"
-        className="mt-2 block w-full"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
+              <div className="mt-3 space-y-3">
+                {onSelectPdf && (
+  <label className="block text-sm">
+    Select original PDF for comparison
 
-          if (file) {
-            onSelectPdf?.(file);
-          }
+    <input
+      type="file"
+      accept=".pdf,application/pdf"
+      className="mt-2 block w-full"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
 
-          e.target.value = "";
-        }}
-      />
-    </label>
+        if (file) {
+          onSelectPdf(file);
+        }
 
-    {pdfUrl ? (
-      <iframe
-        title={`Original PDF for ${song.title}`}
-        src={pdfUrl}
-        style={{
-          width: "100%",
-          height: 520,
-          border: "1px solid #ccd5df",
-          borderRadius: 8,
-        }}
-      />
-    ) : (
-      <p className="text-sm text-slate-500">
-        No original PDF selected. Choose a local PDF
-        above to compare with the extracted notes.
-      </p>
-    )}
-  </div>
-</details>
+        e.target.value = "";
+      }}
+    />
+  </label>
+)}
+
+                {pdfUrl ? (
+                  <iframe
+                    title={`Original PDF for ${song.title}`}
+                    src={pdfUrl}
+                    style={{
+                      width: "100%",
+                      height: 520,
+                      border: "1px solid #ccd5df",
+                      borderRadius: 8,
+                    }}
+                  />
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    No original PDF selected. Choose a local PDF above to
+                    compare with the extracted notes.
+                  </p>
+                )}
+              </div>
+            </details>
 
             <div className="barfields">
               <label>
@@ -215,28 +218,28 @@ export default function MelodyEditor({
               </label>
             </div>
             <div className="mb-4 flex items-center justify-between gap-3">
-  <button
-    type="button"
-    disabled={selected === 0}
-    onClick={() => setSelected((current) => current - 1)}
-    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-  >
-    ← Previous Bar
-  </button>
+              <button
+                type="button"
+                disabled={selected === 0}
+                onClick={() => setSelected((current) => current - 1)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                ← Previous Bar
+              </button>
 
-  <span className="text-sm text-slate-500">
-    Bar {selected + 1} of {song.bars.length}
-  </span>
+              <span className="text-sm text-slate-500">
+                Bar {selected + 1} of {song.bars.length}
+              </span>
 
-  <button
-    type="button"
-    disabled={selected >= song.bars.length - 1}
-    onClick={() => setSelected((current) => current + 1)}
-    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
-  >
-    Next Bar →
-  </button>
-</div>
+              <button
+                type="button"
+                disabled={selected >= song.bars.length - 1}
+                onClick={() => setSelected((current) => current + 1)}
+                className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Next Bar →
+              </button>
+            </div>
             <label className="barlyrics">
               Lyrics / notes for this bar{" "}
               <small>(optional; saved with this bar)</small>
@@ -256,7 +259,74 @@ export default function MelodyEditor({
                 it when set
               </small>
             </div>
-            <div className="tabpreview">
+
+            <div
+              className="tabpreview"
+              onPointerMove={(e) => {
+                const noteId = draggingNoteId.current;
+                if (!noteId) return;
+
+                const preview = e.currentTarget;
+
+                const rows = Array.from(
+                  preview.querySelectorAll<HTMLElement>(".stringrow"),
+                );
+
+                const firstLine =
+                  rows[0]?.querySelector<HTMLElement>(".stringline");
+
+                if (!firstLine) return;
+
+                // Horizontal position.
+                const rect = firstLine.getBoundingClientRect();
+
+                const percentage = ((e.clientX - rect.left) / rect.width) * 100;
+
+                const nextPosition = Math.max(
+                  0,
+                  Math.min(94, Math.round(percentage * 10) / 10),
+                );
+
+                // Vertical position: nearest guitar string.
+                let nextString = 1;
+                let nearestDistance = Infinity;
+
+                rows.forEach((row, index) => {
+                  const rowRect = row.getBoundingClientRect();
+                  const centerY = rowRect.top + rowRect.height / 2;
+
+                  const distance = Math.abs(e.clientY - centerY);
+
+                  if (distance < nearestDistance) {
+                    nearestDistance = distance;
+                    nextString = index + 1;
+                  }
+                });
+
+                updateBar((bar) => ({
+                  ...bar,
+                  notes: bar.notes.map((note) =>
+                    note.id === noteId
+                      ? {
+                          ...note,
+                          position: nextPosition,
+                          string: nextString,
+                        }
+                      : note,
+                  ),
+                }));
+              }}
+              onPointerUp={(e) => {
+                draggingNoteId.current = null;
+
+                if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                  e.currentTarget.releasePointerCapture(e.pointerId);
+                }
+              }}
+              onPointerCancel={() => {
+                draggingNoteId.current = null;
+              }}
+            >
               {[1, 2, 3, 4, 5, 6].map((s) => (
                 <div className="stringrow" key={s}>
                   <span>{s}</span>
@@ -276,38 +346,18 @@ export default function MelodyEditor({
                             }}
                             title={`String ${s}, fret ${n.fret}. Drag horizontally to reposition.`}
                             onPointerDown={(e) => {
+                              if (e.button !== 0) return;
+
                               e.preventDefault();
-                              const line = e.currentTarget.parentElement;
-                              if (!line) return;
-                              e.currentTarget.setPointerCapture(e.pointerId);
-                            }}
-                            onPointerMove={(e) => {
-                              if (e.buttons !== 1) return;
-                              const line = e.currentTarget.parentElement;
-                              if (!line) return;
-                              const rect = line.getBoundingClientRect();
-                              const percentage =
-                                ((e.clientX - rect.left) / rect.width) * 100;
-                              updateNote(
-                                n.id,
-                                "position",
-                                Math.max(
-                                  0,
-                                  Math.min(
-                                    94,
-                                    Math.round(percentage * 10) / 10,
-                                  ),
-                                ),
-                              );
-                            }}
-                            onPointerUp={(e) => {
-                              if (
-                                e.currentTarget.hasPointerCapture(e.pointerId)
-                              ) {
-                                e.currentTarget.releasePointerCapture(
-                                  e.pointerId,
+
+                              draggingNoteId.current = n.id;
+
+                              const preview =
+                                e.currentTarget.closest<HTMLElement>(
+                                  ".tabpreview",
                                 );
-                              }
+
+                              preview?.setPointerCapture(e.pointerId);
                             }}
                           >
                             {n.fret}

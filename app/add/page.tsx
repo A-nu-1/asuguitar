@@ -36,7 +36,7 @@ export default function AddSongPage() {
           </span>
         </Link>
 
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-8">
+       <Link href="/add/chords" className="group rounded-2xl border border-slate-200 bg-white p-8 shadow-sm transition hover:border-teal-400 hover:shadow-md">
           <div className="mb-4 text-4xl">🎶</div>
 
           <h2 className="text-xl font-semibold text-slate-800">
@@ -48,10 +48,10 @@ export default function AddSongPage() {
             YouTube practice.
           </p>
 
-          <span className="mt-6 inline-block text-sm font-medium text-slate-400">
-            Coming next
+          <span className="mt-6 inline-block text-sm font-semibold text-teal-700">
+            Add Chord Song →
           </span>
-        </div>
+        </Link>
       </div>
 
       <Link

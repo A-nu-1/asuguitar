@@ -1,108 +1,125 @@
-
 "use client";
 
-
 import { useEffect, useMemo, useState } from "react";
-
-import {
-  loadLibrarySongs,
-  type LibrarySong,
-} from "@/lib/supabase/loadSongs";
+import Link from "next/link";
+import { demoSongs } from "@/lib/dev/sampleSongs";
+import type { LibrarySong, GuitarAPI } from "@/types/guitar";
 
 
+declare global {
+  interface Window {
+    guitarAPI?: GuitarAPI;
+  }
+}
 
 export default function HomePage() {
   const [search, setSearch] = useState("");
-const [songs, setSongs] = useState<LibrarySong[]>([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState("");
+  const [songs, setSongs] = useState<LibrarySong[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-useEffect(() => {
-  let active = true;
+  useEffect(() => {
+    let active = true;
 
-  async function fetchSongs() {
-    try {
-      const data = await loadLibrarySongs();
+    async function fetchSongs() {
+      try {
+        let data: LibrarySong[];
 
-      if (active) {
-        setSongs(data);
-      }
-    } catch (err) {
-      if (active) {
-        setError(
-          err instanceof Error ? err.message : String(err),
-        );
-      }
-    } finally {
-      if (active) {
-        setLoading(false);
+        if (window.guitarAPI?.getSongs) {
+          // Electron: actual songs from SQLite.
+          data = await window.guitarAPI.getSongs();
+        } else if (process.env.NODE_ENV === "development") {
+          // Browser: temporary sample songs.
+         data = demoSongs.map((song) => ({
+  id: song.id,
+  title: song.title,
+  song_type: song.song_type,
+  class_date: song.class_date,
+  created_at: song.created_at,
+}));
+        } else {
+          throw new Error(
+            "Local guitar database is unavailable. Please open the Electron app.",
+          );
+        }
+
+        if (active) {
+          setSongs(data);
+        }
+      } catch (err) {
+        if (active) {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
     }
-  }
 
-  void fetchSongs();
+    void fetchSongs();
 
-  return () => {
-    active = false;
-  };
-}, []);
+    return () => {
+      active = false;
+    };
+  }, []);
 
-const filteredSongs = useMemo(() => {
-  return songs
-    .filter((song) =>
-      song.title
-        .toLowerCase()
-        .includes(search.toLowerCase().trim()),
-    )
-    .sort((a, b) =>
-      b.created_at.localeCompare(a.created_at),
-    );
-}, [songs, search]);
+  const filteredSongs = useMemo(() => {
+    const query = search.toLowerCase().trim();
 
-  function renderColumn(
-    category: LibrarySong["song_type"],
-    heading: string,
-  ) {
-    const columnSongs = filteredSongs.filter(
-      (song) => song.song_type === category,
+    return songs
+      .filter((song) => song.title.toLowerCase().includes(query))
+      .sort((a, b) => {
+        // Class date takes priority when available.
+        // Otherwise, fall back to the original added date.
+        const dateA = a.class_date || a.created_at;
+        const dateB = b.class_date || b.created_at;
+
+        return dateB.localeCompare(dateA);
+      });
+  }, [songs, search]);
+
+  function renderColumn(category: "melody" | "chords", heading: string) {
+    const columnSongs = filteredSongs.filter((song) =>
+      category === "melody"
+        ? song.song_type === "melody" || song.song_type === "tab"
+        : song.song_type === "chords",
     );
 
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-4 text-lg font-semibold text-slate-800">
-          {heading}
-        </h2>
-{loading && (
-  <p className="mb-4 text-sm text-slate-500">
-    Loading your songs...
-  </p>
-)}
+        <h2 className="mb-4 text-lg font-semibold text-slate-800">{heading}</h2>
 
-{error && (
-  <p role="alert" className="mb-4 text-sm text-red-600">
-    Could not load songs: {error}
-  </p>
-)}
+        {loading && (
+          <p className="mb-4 text-sm text-slate-500">Loading your songs...</p>
+        )}
+
+        {error && (
+          <p role="alert" className="mb-4 text-sm text-red-600">
+            Could not load songs: {error}
+          </p>
+        )}
+
         <div className="space-y-3">
           {columnSongs.map((song) => (
-            <div
+            <Link
               key={song.id}
-              className="rounded-xl border border-slate-200 p-4"
+              href={`/songs?id=${encodeURIComponent(song.id)}`}
+              className="block rounded-xl border border-slate-200 p-4 transition-colors hover:border-teal-400 hover:bg-teal-50 focus-visible:outline-2 focus-visible:outline-teal-500"
             >
-              <h3 className="font-semibold text-slate-800">
-                {song.title}
-              </h3>
+              <h3 className="font-semibold text-slate-800">{song.title}</h3>
 
-             <p className="mt-1 text-xs text-slate-500">
-  Added On: {new Date(song.created_at).toLocaleDateString("en-CH")}
-</p>
-            </div>
+              <p className="mt-1 text-xs text-slate-500">
+                {song.class_date ? "Class Date" : "Added On"}:{" "}
+                {new Date(
+                  song.class_date || song.created_at,
+                ).toLocaleDateString("en-CH")}
+              </p>
+            </Link>
           ))}
 
-          {columnSongs.length === 0 && (
-            <p className="text-sm text-slate-400">
-              No songs found.
-            </p>
+          {!loading && !error && columnSongs.length === 0 && (
+            <p className="text-sm text-slate-400">No songs found.</p>
           )}
         </div>
       </section>
@@ -144,8 +161,6 @@ const filteredSongs = useMemo(() => {
         {renderColumn("melody", "🎼 Melody / Tabs")}
         {renderColumn("chords", "🎶 Chords")}
       </div>
-
-    
     </main>
   );
 }

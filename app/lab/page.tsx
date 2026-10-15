@@ -652,7 +652,11 @@ function LabEditor() {
               onSelectPdf={selectComparisonPdf}
             />
           ) : (
-            <ChordEditor song={song} updateSong={updateSong} />
+            <ChordEditor
+  song={song}
+  updateSong={updateSong}
+  pdfUrl={pdfUrl ?? "/samples/christmas-chords-original.pdf"}
+/>
           )}
         </>
       )}

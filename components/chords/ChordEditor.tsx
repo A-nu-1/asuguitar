@@ -8,6 +8,7 @@ import ChordSidebar from "@/components/chords/ChordSidebar";
 type Props = {
   song: Song;
   updateSong: (fn: (song: Song) => Song) => void;
+  pdfUrl?: string | null;
 };
 
 const uid = () => Math.random().toString(36).slice(2, 10);
@@ -15,6 +16,8 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 export default function ChordEditor({
   song,
   updateSong,
+    pdfUrl,
+
 }: Props) {
   const chordSections = song.chordLines.reduce<
     { id: string; name: string; count: number }[]
@@ -118,17 +121,25 @@ export default function ChordEditor({
           Insert missing records wherever needed.
         </p>
 
-        <details className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <summary className="cursor-pointer font-semibold text-teal-700">
-            Compare with original PDF (click to expand)
-          </summary>
+        
+<details className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+  <summary className="cursor-pointer font-semibold text-teal-700">
+    Compare with original PDF
+  </summary>
 
-          <iframe
-            title="Original Christmas Chords PDF"
-            src="/samples/christmas-chords-original.pdf"
-            className="mt-4 h-[40vh] min-h-[280px] w-full rounded-lg border border-slate-300 bg-white"
-          />
-        </details>
+  {pdfUrl ? (
+    <iframe
+      title={`Original PDF for ${song.title}`}
+      src={pdfUrl}
+      className="mt-4 h-[40vh] min-h-[280px] w-full rounded-lg border border-slate-300 bg-white"
+    />
+  ) : (
+    <p className="mt-3 text-sm text-slate-500">
+      No original PDF attached.
+    </p>
+  )}
+</details>
+
 
         <div
           id="chord-records-scroll"

@@ -1,8 +1,16 @@
-
-const { app, BrowserWindow } = require("electron");
+const { app, BrowserWindow, ipcMain } = require("electron");
+const { DatabaseSync } = require("node:sqlite");
 const path = require("node:path");
 const fs = require("node:fs");
 const http = require("node:http");
+const {
+  initializeDatabase,
+  getDatabase,
+  closeDatabase,
+} = require("./database.cjs");
+const { saveSong } = require("./saveSong.cjs");
+const { loadSongPdf } = require("./loadSongPdf.cjs");
+const { updateSong } = require("./updateSong.cjs");
 
 let server = null;
 
@@ -11,7 +19,7 @@ const PORT = 4173;
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
-    ".mjs": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json",
   ".svg": "image/svg+xml",
@@ -31,10 +39,8 @@ function startServer() {
 
     server = http.createServer((req, res) => {
       try {
-        const requestPath = new URL(
-          req.url || "/",
-          "http://localhost",
-        ).pathname;
+        const requestPath = new URL(req.url || "/", "http://localhost")
+          .pathname;
 
         const decodedPath = decodeURIComponent(requestPath);
         const relativePath = decodedPath.replace(/^\/+/, "");
@@ -53,7 +59,16 @@ function startServer() {
         let filePath = requestedFile;
 
         if (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory()) {
-          filePath = path.join(filePath, "index.html");
+          const indexFile = path.join(filePath, "index.html");
+          const htmlFile = `${filePath}.html`;
+
+          if (fs.existsSync(indexFile)) {
+            filePath = indexFile;
+          } else if (fs.existsSync(htmlFile)) {
+            filePath = htmlFile;
+          } else {
+            filePath = indexFile;
+          }
         } else if (!path.extname(filePath)) {
           filePath += ".html";
         }
@@ -98,6 +113,7 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      preload: path.join(__dirname, "preload.cjs"),
     },
   });
 
@@ -106,6 +122,97 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   try {
+    initializeDatabase();
+
+    ipcMain.handle("songs:list", () => {
+      const database = getDatabase();
+
+      return database
+        .prepare(
+          `
+      SELECT
+        id,
+        title,
+        song_type,
+        class_date,
+        description,
+        youtube_url,
+        pdf_filename,
+        extraction_status,
+        capo,
+        strumming_pattern,
+        tempo_bpm,
+        time_signature,
+        created_at,
+        updated_at
+      FROM songs
+      ORDER BY
+        class_date DESC,
+        created_at DESC
+    `,
+        )
+        .all();
+    });
+
+    ipcMain.handle("songs:get", (_event, songId) => {
+      if (typeof songId !== "string" || !songId.trim()) {
+        throw new Error("Invalid song ID.");
+      }
+
+      const database = getDatabase();
+
+      const song = database
+        .prepare(
+          `
+      SELECT *
+      FROM songs
+      WHERE id = ?
+    `,
+        )
+        .get(songId);
+
+      if (!song) {
+        return null;
+      }
+
+      const bars = database
+        .prepare(
+          `
+      SELECT
+        id,
+        song_id,
+        bar_number,
+        section,
+        lyrics,
+        notes
+      FROM song_bars
+      WHERE song_id = ?
+      ORDER BY bar_number ASC
+    `,
+        )
+        .all(songId);
+
+      return {
+        ...song,
+        chord_lines: JSON.parse(song.chord_lines || "[]"),
+        bars: bars.map((bar) => ({
+          ...bar,
+          notes: JSON.parse(bar.notes || "[]"),
+        })),
+      };
+    });
+
+    ipcMain.handle("songs:save", (_event, payload) => {
+      return saveSong(payload);
+    });
+
+    ipcMain.handle("songs:pdf", (_event, songId) => {
+      return loadSongPdf(songId);
+    });
+    ipcMain.handle("songs:update", (_event, payload) => {
+      return updateSong(payload);
+    });
+
     await startServer();
     createWindow();
 
@@ -121,6 +228,7 @@ app.whenReady().then(async () => {
 });
 
 app.on("before-quit", () => {
+  closeDatabase();
   if (server) {
     server.close();
     server = null;

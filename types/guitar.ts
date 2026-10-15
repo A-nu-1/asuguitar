@@ -65,3 +65,99 @@ export type Song = {
     filename: string;
   };
 };
+
+export type LibrarySong = {
+  id: string;
+  title: string;
+  song_type: "melody" | "tab" | "chords";
+  class_date: string | null;
+  created_at: string;
+};
+
+
+export type SongSaveBar = {
+  id: string;
+  number: number;
+  section: string;
+  lyrics: string;
+  notes: Array<{
+    id: string;
+    string: number;
+    fret: string;
+    beat: number | null;
+    duration: number | null;
+    sourceX?: number;
+    sourceY?: number;
+    position?: number;
+  }>;
+};
+
+
+
+export type GuitarAPI = {
+  getSongs: () => Promise<LibrarySong[]>;
+
+  getSong: (songId: string) => Promise<unknown>;
+
+  getSongPdf: (
+    songId: string
+  ) => Promise<Uint8Array | null>;
+
+  // ADD SONG
+  saveSong: (payload: {
+    title: string;
+    class_date: string | null;
+    description: string | null;
+    youtube_url: string | null;
+
+    // Optional so existing Add Melody keeps working.
+    // Add Chords will explicitly send "chords".
+    song_type?: "melody" | "chords";
+
+    extraction_status: "accepted" | "pdf_only";
+
+    tempo_bpm: number | null;
+    time_signature: string | null;
+
+    capo?: number;
+    strumming_pattern?: string | null;
+
+    bars: SongSaveBar[];
+    chord_lines?: ChordLine[];
+
+    pdf_bytes: Uint8Array;
+  }) => Promise<{
+    id: string;
+    song_type: "melody" | "chords" | "tab";
+    title: string;
+    pdf_filename: string;
+    bars_saved: number;
+  }>;
+
+  // EDIT SONG
+  updateSong: (payload: {
+    id: string;
+    title: string;
+    class_date: string | null;
+    description: string | null;
+    youtube_url: string | null;
+
+    tempo_bpm?: number | null;
+    time_signature?: string | null;
+
+    capo?: number;
+    strumming_pattern?: string | null;
+
+    bars?: SongSaveBar[];
+    chord_lines?: ChordLine[];
+
+    pdf_bytes?: Uint8Array;
+  }) => Promise<{
+    id: string;
+    title: string;
+    song_type: "melody" | "chords" | "tab";
+    pdf_filename: string | null;
+    updated: boolean;
+  }>;
+};
+
