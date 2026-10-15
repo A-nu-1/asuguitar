@@ -132,15 +132,6 @@ export default function SongPage() {
 
   return (
     <main className="flex h-dvh min-h-0 flex-col bg-slate-100">
-      {/* Navigation */}
-      <div className="shrink-0 border-b bg-white px-4 py-2">
-        <Link
-          href="/"
-          className="text-sm font-medium text-teal-700 hover:underline"
-        >
-          ← Back to My Guitar Songs
-        </Link>
-      </div>
 
       {loading && (
         <div className="p-5 text-sm text-slate-500">Loading song...</div>
@@ -154,23 +145,21 @@ export default function SongPage() {
 
       {song && (
         <div className="min-h-0 flex-1">
-          
-<PracticeWorkspace
-  songId={song.id}
-  title={song.title}
-  songType={song.song_type}
-  bars={bars}
-  chordLines={song.chord_lines}
-  pdfUrl={pdfUrl}
-  youtubeUrl={song.youtube_url}
-  classDate={song.class_date}
-  description={song.description}
-  tempo={song.tempo_bpm}
-  timeSignature={song.time_signature}
-  capo={song.capo}
-  strummingPattern={song.strumming_pattern}
-/>
-
+          <PracticeWorkspace
+            songId={song.id}
+            title={song.title}
+            songType={song.song_type}
+            bars={bars}
+            chordLines={song.chord_lines}
+            pdfUrl={pdfUrl}
+            youtubeUrl={song.youtube_url}
+            classDate={song.class_date}
+            description={song.description}
+            tempo={song.tempo_bpm}
+            timeSignature={song.time_signature}
+            capo={song.capo}
+            strummingPattern={song.strumming_pattern}
+          />
         </div>
       )}
     </main>

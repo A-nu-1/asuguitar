@@ -1,1 +1,179 @@
+
 @import "tailwindcss";
+
+/* Butterfly wing movement */
+
+@keyframes magic-wing-flutter {
+  0%, 100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(0.65);
+  }
+}
+
+/* Rose explores the left, center and upper sky */
+
+@keyframes magic-roaming-rose {
+  0% {
+    transform: translate(0, 0) rotate(-12deg);
+  }
+  15% {
+    transform: translate(18vw, 12vh) rotate(12deg);
+  }
+  35% {
+    transform: translate(48vw, 35vh) rotate(-18deg);
+  }
+  55% {
+    transform: translate(68vw, 8vh) rotate(20deg);
+  }
+  75% {
+    transform: translate(28vw, 52vh) rotate(-14deg);
+  }
+  90% {
+    transform: translate(8vw, 20vh) rotate(8deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(-12deg);
+  }
+}
+
+/* Azure explores the middle and lower garden */
+
+@keyframes magic-roaming-azure {
+  0% {
+    transform: translate(0, 0) rotate(8deg);
+  }
+  20% {
+    transform: translate(-35vw, 25vh) rotate(-20deg);
+  }
+  40% {
+    transform: translate(-12vw, 65vh) rotate(16deg);
+  }
+  60% {
+    transform: translate(38vw, 45vh) rotate(-14deg);
+  }
+  80% {
+    transform: translate(15vw, 8vh) rotate(20deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(8deg);
+  }
+}
+
+/* Sunshine explores the right and lower sky */
+
+@keyframes magic-roaming-sunshine {
+  0% {
+    transform: translate(0, 0) rotate(-5deg);
+  }
+  20% {
+    transform: translate(-20vw, 35vh) rotate(18deg);
+  }
+  40% {
+    transform: translate(-65vw, 55vh) rotate(-20deg);
+  }
+  60% {
+    transform: translate(-42vw, 5vh) rotate(14deg);
+  }
+  80% {
+    transform: translate(-8vw, 45vh) rotate(-12deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(-5deg);
+  }
+}
+
+/* Butterfly heart sparkle */
+
+@keyframes magic-butterfly-sparkle {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1.3);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -200%) scale(0.7);
+  }
+}
+
+/* Caterpillars crawl along the bottom */
+
+@keyframes magic-crawl-across {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(70vw);
+  }
+}
+
+@keyframes magic-crawl-reverse {
+  0% {
+    transform: translateX(120%) scaleX(-1);
+  }
+  100% {
+    transform: translateX(-70vw) scaleX(-1);
+  }
+}
+
+/* Animals react when clicked */
+
+@keyframes magic-wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-12deg);
+  }
+  75% {
+    transform: rotate(12deg);
+  }
+}
+
+/* Stars twinkle */
+
+@keyframes magic-twinkle {
+  0%, 100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Waterfalls flow continuously */
+
+@keyframes magic-waterfall {
+  from {
+    background-position-y: 0;
+  }
+  to {
+    background-position-y: 80px;
+  }
+}
+
+/* Respect reduced-motion settings */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-magic-theme] *,
+  [data-magic-theme] *::before,
+  [data-magic-theme] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+@keyframes magic-float {
+  0%, 100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+
+  50% {
+    transform: translateY(-18px) rotate(5deg);
+  }
+}
+
