@@ -248,25 +248,29 @@ export default function MagicScene({ children }: Props) {
       `}
     >
       {/* Fairyland sky */}
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[320px] bg-cover bg-center opacity-90 sm:h-[390px]"
-        style={{
-          backgroundImage: "url('/magic/asu-skyline.png')",
-          filter: dark
-            ? "brightness(.45) saturate(1.7) hue-rotate(24deg)"
-            : "none",
-        }}
-      />
+      
+{/* Full magical castle scenery — one continuous background */}
+<div
+  aria-hidden="true"
+  className="pointer-events-none absolute inset-0 -z-10"
+  style={{
+    backgroundImage: dark
+      ? "url('/magic/nightabove.png')"
+      : "url('/magic/dayabove.png')",
+    backgroundSize: "100% 100%",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+  }}
+/>
 
-      <div
-        aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-0 top-[210px] -z-10 h-60 ${
-          dark
-            ? "bg-gradient-to-b from-transparent to-[#0d1436]"
-            : "bg-gradient-to-b from-transparent to-[#f3e5ff]"
-        }`}
-      />
+{/* Very gentle tint for matching the active theme */}
+<div
+  aria-hidden="true"
+  className={`pointer-events-none absolute inset-0 -z-10 ${
+    dark ? "bg-indigo-950/10" : "bg-pink-100/5"
+  }`}
+/>
+
 
       {/* Garden scenery at the bottom */}
       <div

@@ -6,7 +6,11 @@ import ChordSheetView from "@/components/practice/ChordSheetView";
 import PdfViewer from "@/components/practice/PdfViewer";
 import type { Bar, ChordLine } from "@/types/guitar";
 import Link from "next/link";
-import PageCornerNav from "@/components/layout/PageCornerNav";
+
+const SONG_ICONS = Array.from(
+  { length: 24 },
+  (_, index) => `/magic/pointers/i${index + 1}.png`,
+);
 
 type Props = {
   title: string;
@@ -95,8 +99,16 @@ export default function PracticeWorkspace({
   const [savingNotes, setSavingNotes] = useState(false);
   const [notesError, setNotesError] = useState("");
 
+  const [crystalMenuOpen, setCrystalMenuOpen] = useState(false);
   const isDesktop =
     typeof window !== "undefined" && !!window.guitarAPI?.updateSong;
+
+  const [songIcon, setSongIcon] = useState(SONG_ICONS[0]);
+
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * SONG_ICONS.length);
+    setSongIcon(SONG_ICONS[randomIndex]);
+  }, [songId]);
 
   useEffect(() => {
     setNotes(description ?? "");
@@ -253,92 +265,315 @@ export default function PracticeWorkspace({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-slate-100">
-      {/* Practice toolbar */}
-      <header className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b bg-white px-4 py-3">
-        <h1 className="min-w-0 truncate font-semibold text-slate-800">
-          🎸 {title}
-        </h1>
+      {/* Magical practice navigation */}
+      <div
+        className="
+    relative z-30 flex shrink-0 flex-wrap
+    items-center justify-between gap-x-4 gap-y-2
+    border-b border-fuchsia-400/40
+    bg-gradient-to-r from-[#171331]
+    via-[#302052] to-[#131c43]
+    px-4 py-3 text-violet-100
+    shadow-[0_4px_20px_rgba(128,72,218,0.25)]
+    sm:px-6
+  "
+      >
+        {/* CENTERED SONG TITLE */}
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-3">
+          <img
+            src={songIcon}
+            alt=""
+            className="
+      h-12 w-12 shrink-0 object-contain
+      drop-shadow-[0_0_12px_#dca5ff]
+    "
+          />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setInfoOpen(true)}
-            className="rounded-lg border px-3 py-1.5 text-xs font-medium"
+          <h1
+            title={title}
+            className="
+      min-w-0 truncate text-center
+      !text-2xl font-extrabold tracking-tight
+      text-violet-100
+      drop-shadow-[0_0_10px_#b98cff]
+      sm:!text-3xl
+    "
           >
-            Song Info
-          </button>
+            {title}
+          </h1>
+        </div>
 
-          <Link
-            href={`/edit?id=${encodeURIComponent(songId)}`}
-            className="rounded-lg border px-3 py-1.5 text-xs font-medium"
+        {/* CENTER: Music scrolling controls */}
+        {songType !== "tab" && (
+          <div
+            aria-label="Music scrolling controls"
+            className="
+        flex shrink-0 items-center gap-2
+        rounded-full border border-violet-300/30
+        bg-violet-950/40 px-2 py-1
+        shadow-[inset_0_0_12px_#9060ff22]
+      "
           >
-            ✏️ Edit Song
-          </Link>
-
-          {songType !== "tab" && (
+            {/* Crystal Play / Pause */}
             <button
               type="button"
-              disabled={!pdfUrl}
-              onClick={() => {
-                setScrolling(false);
-                setComparing(true);
-              }}
-              className="rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-40"
-              title={
-                pdfUrl
-                  ? "Compare extracted music with original PDF"
-                  : "Original PDF unavailable"
+              onClick={() => setScrolling((current) => !current)}
+              aria-label={
+                scrolling
+                  ? "Pause automatic scrolling"
+                  : "Start automatic scrolling"
               }
+              title={scrolling ? "Pause scrolling" : "Play scrolling"}
+              className={`
+          group/play relative flex h-11 w-11
+          shrink-0 items-center justify-center
+          rounded-full border text-2xl font-bold
+          transition-all duration-300
+          hover:scale-110
+          focus-visible:outline-2
+          focus-visible:outline-offset-2
+          focus-visible:outline-pink-300
+          ${
+            scrolling
+              ? `
+                border-rose-300
+                bg-gradient-to-br
+                from-pink-400 via-fuchsia-600 to-violet-700
+                text-white
+                shadow-[0_0_18px_#ef79ee99]
+              `
+              : `
+                border-cyan-200
+                bg-gradient-to-br
+                from-cyan-300 via-violet-400 to-fuchsia-600
+                text-white
+                shadow-[0_0_20px_#9d8affbb]
+              `
+          }
+        `}
             >
-              Compare
+              <span
+                aria-hidden="true"
+                className="
+            transition-transform
+            group-hover/play:scale-110
+          "
+              >
+                {scrolling ? "Ⅱ" : "❯"}
+              </span>
             </button>
-          )}
 
+            {/* Reset */}
+            <button
+              type="button"
+              onClick={resetScroll}
+              aria-label="Reset music to beginning"
+              title="Reset to beginning"
+              className="
+          flex h-9 w-9 shrink-0
+          items-center justify-center
+          rounded-full border border-violet-300/50
+          bg-violet-400/15 text-xl text-violet-100
+          transition-all duration-300
+          hover:rotate-[-35deg] hover:bg-violet-400/35
+          hover:shadow-[0_0_12px_#ba95ff]
+        "
+            >
+              ↺
+            </button>
+
+            {/* Existing speed functionality */}
+            <label
+              className="
+          flex items-center gap-2
+          text-xs font-semibold text-violet-200
+        "
+            >
+              <span className="hidden sm:inline">Speed</span>
+
+              <input
+                type="range"
+                min="5"
+                max="150"
+                step="5"
+                value={speed}
+                onChange={(event) => setSpeed(Number(event.target.value))}
+                aria-label="Automatic scroll speed"
+                className="  w-32 cursor-pointer  accent-fuchsia-400  sm:w-52  lg:w-84"
+              />
+
+              <span className=" w-14 whitespace-nowrap text-right text-[11px] tabular-nums text-pink-200 ">
+                {speed} px/s
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* RIGHT: Crystal tools, information and home */}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Crystal dropdown */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setCrystalMenuOpen((current) => !current)}
+              aria-label="Open practice tools"
+              aria-expanded={crystalMenuOpen}
+              aria-haspopup="menu"
+              title="Practice tools"
+              className={`
+          flex h-11 w-11 items-center justify-center
+          rounded-full border border-fuchsia-300/60
+          bg-gradient-to-br from-violet-500/30
+          to-fuchsia-600/30 text-2xl
+          transition-all duration-300
+          hover:scale-110
+          hover:shadow-[0_0_18px_#df9bff]
+          ${crystalMenuOpen ? "scale-105 shadow-[0_0_20px_#df9bff]" : ""}
+        `}
+            >
+              🔮
+            </button>
+
+            {crystalMenuOpen && (
+              <>
+                {/* Outside click closes the menu */}
+                <button
+                  type="button"
+                  aria-label="Close practice tools"
+                  tabIndex={-1}
+                  onClick={() => setCrystalMenuOpen(false)}
+                  className="
+              fixed inset-0 z-40
+              cursor-default bg-transparent
+            "
+                />
+
+                <div
+                  role="menu"
+                  aria-label="Practice tools"
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setCrystalMenuOpen(false);
+                    }
+                  }}
+                  className="
+              absolute right-0 top-14 z-50
+              w-56 rounded-2xl
+              border border-fuchsia-300/50
+              bg-[#21183f]/95 p-2
+              shadow-[0_10px_35px_#0d062bcc]
+              backdrop-blur-xl
+            "
+                >
+                  <Link
+                    role="menuitem"
+                    href={`/edit?id=${encodeURIComponent(songId)}`}
+                    onClick={() => setCrystalMenuOpen(false)}
+                    className="
+                block rounded-xl px-4 py-3
+                text-sm font-semibold text-violet-100
+                transition-colors hover:bg-violet-500/35
+              "
+                  >
+                    ✏️ Edit Song
+                  </Link>
+
+                  {songType !== "tab" && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      disabled={!pdfUrl}
+                      onClick={() => {
+                        setScrolling(false);
+                        setComparing(true);
+                        setCrystalMenuOpen(false);
+                      }}
+                      title={
+                        pdfUrl
+                          ? "Compare with original PDF"
+                          : "Original PDF unavailable"
+                      }
+                      className="
+                  block w-full rounded-xl px-4 py-3
+                  text-left text-sm font-semibold
+                  text-violet-100
+                  transition-colors
+                  hover:bg-violet-500/35
+                  disabled:cursor-not-allowed
+                  disabled:opacity-40
+                "
+                    >
+                      📄 Compare with PDF
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setVideoVisible((current) => !current);
+                      setCrystalMenuOpen(false);
+                    }}
+                    className="
+                block w-full rounded-xl px-4 py-3
+                text-left text-sm font-semibold
+                text-violet-100
+                transition-colors hover:bg-violet-500/35
+              "
+                  >
+                    {videoVisible ? "🎬 Hide Video" : "🎬 Show Video"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Song Information */}
           <button
             type="button"
-            onClick={() => setVideoVisible((current) => !current)}
-            className="rounded-lg border px-3 py-1.5 text-xs font-medium"
+            onClick={() => {
+              setCrystalMenuOpen(false);
+              setInfoOpen(true);
+            }}
+            title="Song information"
+            aria-label="Song information"
+            className="
+        flex h-11 w-11 items-center justify-center
+        rounded-full border border-cyan-300/60
+        bg-gradient-to-br
+        from-cyan-400/20 to-violet-500/30
+        text-2xl font-bold text-cyan-100
+        shadow-[0_0_12px_#8bdcff55]
+        transition-all duration-300
+        hover:scale-110
+        hover:shadow-[0_0_20px_#8bdcff]
+      "
           >
-            {videoVisible ? "Hide Video" : "Show Video"}
+            ⓘ
           </button>
+
+          {/* Bigger Home castle */}
+          <Link
+            href="/"
+            title="Return to magical homepage"
+            aria-label="Return home"
+            className="
+        flex h-14 w-14 items-center justify-center
+        rounded-2xl border border-pink-300/70
+        bg-gradient-to-br
+        from-pink-400/25 via-violet-500/30
+        to-cyan-400/20
+        text-3xl
+        shadow-[0_0_18px_#e4a4ff88]
+        transition-all duration-300
+        hover:-translate-y-1 hover:scale-110
+        hover:shadow-[0_0_25px_#f0aeff]
+      "
+          >
+            🏰
+          </Link>
         </div>
-        <PageCornerNav />
-      </header>
-
-      {/* Scrolling controls for extracted music */}
-      {songType !== "tab" && (
-        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-white px-3 py-2">
-          <button
-            type="button"
-            onClick={() => setScrolling((current) => !current)}
-            className="rounded bg-teal-600 px-3 py-1 text-xs font-semibold text-white"
-          >
-            {scrolling ? "Pause" : "Start"}
-          </button>
-
-          <button
-            type="button"
-            onClick={resetScroll}
-            className="rounded border px-3 py-1 text-xs"
-          >
-            Reset
-          </button>
-
-          <label className="flex items-center gap-2 text-xs">
-            Speed
-            <input
-              type="range"
-              min="5"
-              max="150"
-              step="5"
-              value={speed}
-              onChange={(event) => setSpeed(Number(event.target.value))}
-              className="w-32 cursor-pointer"
-            />
-            <span className="w-16 tabular-nums">{speed} px/s</span>
-          </label>
-        </div>
-      )}
+      </div>
 
       {/* Main practice area */}
       <section className="min-h-0 flex-1">

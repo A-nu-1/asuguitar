@@ -150,25 +150,24 @@ export default function MelodyEditor({
 
               <div className="mt-3 space-y-3">
                 {onSelectPdf && (
-  <label className="block text-sm">
-    Select original PDF for comparison
+                  <label className="block text-sm">
+                    Select original PDF for comparison
+                    <input
+                      type="file"
+                      accept=".pdf,application/pdf"
+                      className="mt-2 block w-full"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
 
-    <input
-      type="file"
-      accept=".pdf,application/pdf"
-      className="mt-2 block w-full"
-      onChange={(e) => {
-        const file = e.target.files?.[0];
+                        if (file) {
+                          onSelectPdf(file);
+                        }
 
-        if (file) {
-          onSelectPdf(file);
-        }
-
-        e.target.value = "";
-      }}
-    />
-  </label>
-)}
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
 
                 {pdfUrl ? (
                   <iframe
@@ -240,18 +239,7 @@ export default function MelodyEditor({
                 Next Bar →
               </button>
             </div>
-            <label className="barlyrics">
-              Lyrics / notes for this bar{" "}
-              <small>(optional; saved with this bar)</small>
-              <textarea
-                rows={3}
-                placeholder="Type lyrics or teacher notes for this bar…"
-                value={active.lyrics ?? ""}
-                onChange={(e) =>
-                  updateBar((b) => ({ ...b, lyrics: e.target.value }))
-                }
-              />
-            </label>
+            
             <div className="tabheading">
               Tab preview{" "}
               <small>
@@ -463,6 +451,18 @@ export default function MelodyEditor({
                   </button>
                 </div>
               ))}
+              <label className="barlyrics">
+              Lyrics / notes for this bar{" "}
+              <small>(optional; saved with this bar)</small>
+              <textarea
+                rows={3}
+                placeholder="Type lyrics or teacher notes for this bar…"
+                value={active.lyrics ?? ""}
+                onChange={(e) =>
+                  updateBar((b) => ({ ...b, lyrics: e.target.value }))
+                }
+              />
+            </label>
             </div>
           </>
         ) : (

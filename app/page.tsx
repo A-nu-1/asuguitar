@@ -7,6 +7,14 @@ import MagicScene from "@/components/magic/MagicScene";
 import { demoSongs } from "@/lib/dev/sampleSongs";
 import type { GuitarAPI, LibrarySong } from "@/types/guitar";
 
+const SONG_ICONS = Array.from(
+  { length: 24 },
+  (_, index) => `/magic/pointers/i${index + 1}.png`,
+);
+
+const MELODY_ICON = "/magic/pointers/mel-icon.png";
+const CHORD_ICON = "/magic/pointers/chord-icon.png";
+
 type SpeechResult = {
   results: ArrayLike<ArrayLike<{ transcript: string }>>;
 };
@@ -47,6 +55,20 @@ export default function HomePage() {
   const [voiceError, setVoiceError] = useState("");
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+
+  const [songIcons, setSongIcons] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const icons: Record<string, string> = {};
+
+    songs.forEach((song) => {
+      const randomIndex = Math.floor(Math.random() * SONG_ICONS.length);
+
+      icons[song.id] = SONG_ICONS[randomIndex];
+    });
+
+    setSongIcons(icons);
+  }, [songs]);
 
   // Load songs.
   useEffect(() => {
@@ -201,9 +223,11 @@ export default function HomePage() {
         "
       >
         <div className="mb-2 flex shrink-0 items-center gap-2 border-b border-fuchsia-200/60 pb-3">
-          <span className="text-2xl">
-            {category === "melody" ? "🎼" : "🎸"}
-          </span>
+          <img
+            src={category === "melody" ? MELODY_ICON : CHORD_ICON}
+            alt=""
+            className="h-11 w-11 shrink-0 object-contain drop-shadow-[0_0_10px_#e9a5ff]"
+          />
 
           <h2 className="text-lg font-extrabold text-violet-900 group-data-[magic-theme=midnight]:text-violet-100">
             {heading}
@@ -234,7 +258,7 @@ export default function HomePage() {
             focus-visible:outline-2 focus-visible:outline-violet-400
           "
         >
-          {columnSongs.map((song, index) => (
+          {columnSongs.map((song) => (
             <Link
               key={song.id}
               href={`/songs?id=${encodeURIComponent(song.id)}`}
@@ -257,20 +281,22 @@ export default function HomePage() {
             >
               <span
                 aria-hidden="true"
-                className={`
-                  flex h-7 w-7 shrink-0 items-center
-                  justify-center rounded-lg text-sm
-                  shadow-[0_0_8px_#d99eee66]
-                  ${
-                    index % 3 === 0
-                      ? "bg-pink-200/70"
-                      : index % 3 === 1
-                        ? "bg-cyan-200/70"
-                        : "bg-violet-200/70"
-                  }
-                `}
+                className="
+    flex h-10 w-10 shrink-0 items-center justify-center
+    rounded-lg
+    transition-transform duration-300
+    group-hover/song:scale-125
+  "
               >
-                {category === "melody" ? "✧" : "♫"}
+                <img
+                  src={songIcons[song.id] ?? SONG_ICONS[0]}
+                  alt=""
+                  loading="lazy"
+                  className="
+      h-full w-full object-contain
+      drop-shadow-[0_0_7px_#e6a4ff]
+    "
+                />
               </span>
 
               <span className="min-w-0 flex-1 text-sm font-semibold leading-snug text-violet-900 group-data-[magic-theme=midnight]:text-violet-100">
@@ -303,8 +329,8 @@ export default function HomePage() {
     <MagicScene>
       <main className="relative mx-auto max-w-[1480px] px-2 pb-3 sm:px-5">
         {/* Title and search on the SAME line */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 pr-24">
-          <h1 className="text-2xl font-black tracking-tight text-fuchsia-800 drop-shadow-[0_2px_3px_#ffffffaa] group-data-[magic-theme=midnight]:text-violet-100 sm:text-3xl">
+        <div className="mb-4 ml-23 flex flex-wrap items-center justify-between gap-3 pr-24">
+          <h1 className="!text-5xl font-black tracking-tight text-fuchsia-800 drop-shadow-[0_2px_3px_#ffffffaa] group-data-[magic-theme=midnight]:text-violet-100">
             🎸 Asu&apos;s Guitar Songs ✨
           </h1>
 
@@ -330,13 +356,7 @@ export default function HomePage() {
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Find a song..."
               aria-label="Search songs"
-              className="
-                w-full min-w-0 flex-1 border-0 bg-transparent
-                px-1 py-1.5 text-sm text-violet-900
-                outline-none placeholder:text-violet-400
-                focus:ring-0
-                group-data-[magic-theme=midnight]:text-violet-100
-              "
+              className="  w-full min-w-0 flex-1  rounded-full border-0  !bg-gray/60 px-3 py-2  text-sm text-violet-900  outline-none  placeholder:text-violet-400  focus:ring-0  group-data-[magic-theme=midnight]:!bg-[#30234e]/80  group-data-[magic-theme=midnight]:text-violet-100  group-data-[magic-theme=midnight]:placeholder:text-violet-300/70"
             />
 
             {showDemoMicrophone && (
