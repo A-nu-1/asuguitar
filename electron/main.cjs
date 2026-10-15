@@ -12,9 +12,9 @@ const { saveSong } = require("./saveSong.cjs");
 const { loadSongPdf } = require("./loadSongPdf.cjs");
 const { updateSong } = require("./updateSong.cjs");
 
-let server = null;
+const { shell } = require("electron");
 
-const PORT = 4173;
+let server = null;
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -99,13 +99,13 @@ function startServer() {
     server.once("error", reject);
 
     // Bind only to this computer.
-    server.listen(PORT, "127.0.0.1", () => {
-      resolve();
+    server.listen(0, "127.0.0.1", () => {
+      resolve(server.address().port);
     });
   });
 }
 
-function createWindow() {
+function createWindow(port) {
   const window = new BrowserWindow({
     width: 1200,
     height: 850,
@@ -117,7 +117,44 @@ function createWindow() {
     },
   });
 
-  window.loadURL(`http://localhost:${PORT}`);
+
+window.webContents.setWindowOpenHandler(({ url }) => {
+  try {
+    const parsed = new URL(url);
+
+    const allowedHosts = [
+      "youtube.com",
+      "www.youtube.com",
+      "m.youtube.com",
+      "youtu.be",
+    ];
+
+    const allowedProtocol =
+      parsed.protocol === "https:" ||
+      parsed.protocol === "http:";
+
+    if (
+      allowedHosts.includes(parsed.hostname) &&
+      allowedProtocol
+    ) {
+      // Always open YouTube securely in the default browser.
+      parsed.protocol = "https:";
+
+      void shell.openExternal(parsed.toString()).catch((error) => {
+        console.error("Could not open YouTube:", error);
+      });
+    } else {
+      console.warn("Blocked external URL:", url);
+    }
+  } catch (error) {
+    console.error("Invalid external URL:", error);
+  }
+
+  return { action: "deny" };
+});
+
+
+  window.loadURL(`http://localhost:${port}`);
 }
 
 app.whenReady().then(async () => {
@@ -213,12 +250,12 @@ app.whenReady().then(async () => {
       return updateSong(payload);
     });
 
-    await startServer();
-    createWindow();
+    const port = await startServer();
+    createWindow(port);
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) {
-        createWindow();
+        createWindow(port);
       }
     });
   } catch (error) {

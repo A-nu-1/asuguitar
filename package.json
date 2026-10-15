@@ -3,11 +3,35 @@
   "version": "0.1.0",
   "main": "electron/main.cjs",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start"
+ "scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "desktop": "electron .",
+  "dist:win": "npm run build && electron-builder --win nsis"
+},
+"build": {
+  "appId": "com.asuguitarlab.desktop",
+  "productName": "Asu Guitar Lab",
+  "asar": true,
+  "directories": {
+    "output": "release"
   },
+  "files": [
+    "electron/**/*",
+    "out/**/*",
+    "package.json"
+  ],
+  "win": {
+    "target": ["nsis"]
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
+  }
+},
   "dependencies": {
     "next": "^15.5.0",
     "pdfjs-dist": "^6.4.299",
@@ -20,6 +44,7 @@
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "electron": "^44.7.1",
+    "electron-builder": "^26.15.3",
     "postcss": "^8.5.29",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.0"

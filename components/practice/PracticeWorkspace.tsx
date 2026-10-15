@@ -629,6 +629,7 @@ export default function PracticeWorkspace({
       >
         {youtubeId ? (
           <iframe
+            key={youtubeId}
             src={`https://www.youtube.com/embed/${youtubeId}`}
             title={`${title} - YouTube practice`}
             allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"

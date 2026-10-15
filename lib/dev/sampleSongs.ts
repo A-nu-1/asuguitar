@@ -244,7 +244,7 @@ const melodyDemos: DemoSong[] = melodyTitles.map(
       capo: 0,
       strumming_pattern: null,
       youtube_url:
-        "https://www.youtube.com/watch?v=YGVKHFCkZVA",
+        "https://www.youtube.com/watch?v=Fkj6-LN6WKI",
       pdfUrl: "/demo/melody.pdf",
       chord_lines: [],
       bars: melodyBars,
