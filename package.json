@@ -9,7 +9,6 @@
     "start": "next start"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.117.3",
     "next": "^15.5.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.1.0",

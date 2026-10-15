@@ -81,7 +81,7 @@ export default function HomePage() {
         if (window.guitarAPI?.getSongs) {
           // Electron: actual SQLite songs.
           data = await window.guitarAPI.getSongs();
-        } else if (process.env.NODE_ENV === "development") {
+       } else {
           // Chrome development demo.
           data = demoSongs.map((song) => ({
             id: song.id,
@@ -90,11 +90,7 @@ export default function HomePage() {
             class_date: song.class_date,
             created_at: song.created_at,
           }));
-        } else {
-          throw new Error(
-            "Local guitar database is unavailable. Please open the Electron app.",
-          );
-        }
+        } 
 
         if (active) setSongs(data);
       } catch (err) {
@@ -115,7 +111,7 @@ export default function HomePage() {
 
   // Chrome demo microphone only.
   useEffect(() => {
-    if (process.env.NODE_ENV !== "development" || window.guitarAPI) {
+    if (window.guitarAPI) {
       return;
     }
 

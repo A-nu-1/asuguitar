@@ -71,7 +71,7 @@ export default function SongPage() {
               selectedPdfUrl = desktopPdfUrl;
             }
           }
-        } else if (process.env.NODE_ENV === "development") {
+        } else {
           const sample = demoSongs.find((item) => item.id === songId);
 
           if (!sample) {
@@ -85,11 +85,7 @@ export default function SongPage() {
           };
 
           selectedPdfUrl = sample.pdfUrl;
-        } else {
-          throw new Error(
-            "Local guitar database is unavailable. Please open the Electron app.",
-          );
-        }
+        } 
 
         if (!data) {
           throw new Error("Song not found.");

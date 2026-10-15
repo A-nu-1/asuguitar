@@ -88,7 +88,7 @@ export default function EditSongPage() {
               originalPdf = objectUrl;
             }
           }
-        } else if (process.env.NODE_ENV === "development") {
+       } else {
           const demo = demoSongs.find((item) => item.id === id);
 
           if (demo) {
@@ -109,8 +109,6 @@ export default function EditSongPage() {
 
             originalPdf = demo.pdfUrl;
           }
-        } else {
-          throw new Error("Open the Electron application to edit saved songs.");
         }
 
         if (!data) {

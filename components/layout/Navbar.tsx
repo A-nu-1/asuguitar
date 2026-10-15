@@ -6,10 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const developerLinks = [
-  { href: "/melody", label: "🎼 Melody Tools" },
-  { href: "/chords", label: "🎸 Chord Tools" },
-  { href: "/lab", label: "🧪 Extraction Lab" },
-  { href: "/practice", label: "🎵 Practice Tools" },
+   { href: "/practice", label: "🎵 Practice Tools" },
   { href: "/extraction-test", label: "🔮 Extraction Tests" },
 ];
 
