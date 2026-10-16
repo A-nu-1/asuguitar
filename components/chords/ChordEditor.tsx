@@ -1,7 +1,6 @@
-
 "use client";
 
-import type { Song } from "@/types/guitar";
+import type { ChordPlacement, Song } from "@/types/guitar";
 import ChordPreview from "@/components/chords/ChordPreview";
 import ChordSidebar from "@/components/chords/ChordSidebar";
 
@@ -13,12 +12,7 @@ type Props = {
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 
-export default function ChordEditor({
-  song,
-  updateSong,
-    pdfUrl,
-
-}: Props) {
+export default function ChordEditor({ song, updateSong, pdfUrl }: Props) {
   const chordSections = song.chordLines.reduce<
     { id: string; name: string; count: number }[]
   >((sections, line) => {
@@ -50,11 +44,54 @@ export default function ChordEditor({
     }));
   }
 
+  function updateChordText(id: string, chords: string) {
+    updateSong((song) => ({
+      ...song,
+      chordLines: song.chordLines.map((line) => {
+        if (line.id !== id) return line;
+
+        // Separate manually entered chords.
+        // Example: "Bm N.C." becomes ["Bm", "N.C."].
+        const chordNames = chords.match(/\S+/g) ?? [];
+
+        // Keep existing placements so manually adjusted
+        // positions are not lost.
+        const availablePlacements = [...(line.placements ?? [])];
+
+        const placements: ChordPlacement[] = chordNames.map((chord, index) => {
+          // Reuse an existing placement for this chord.
+          const existingIndex = availablePlacements.findIndex(
+            (placement) => placement.chord === chord,
+          );
+
+          if (existingIndex !== -1) {
+            const [existing] = availablePlacements.splice(existingIndex, 1);
+
+            return existing;
+          }
+
+          // New chord: create a draggable placement.
+          return {
+            id: uid(),
+            chord,
+            position: 0,
+            charIndex: Math.min(index * 6, line.lyrics.length),
+            manuallyPositioned: false,
+          };
+        });
+
+        return {
+          ...line,
+          chords,
+          placements,
+        };
+      }),
+    }));
+  }
+
   function insertChordLine(afterId: string) {
     updateSong((s) => {
-      const index = s.chordLines.findIndex(
-        (line) => line.id === afterId,
-      );
+      const index = s.chordLines.findIndex((line) => line.id === afterId);
 
       if (index === -1) return s;
 
@@ -79,8 +116,7 @@ export default function ChordEditor({
         ...s.chordLines,
         {
           id: uid(),
-          section:
-            s.chordLines.at(-1)?.section ?? "Unassigned",
+          section: s.chordLines.at(-1)?.section ?? "Unassigned",
           chords: "",
           lyrics: "",
         },
@@ -91,9 +127,7 @@ export default function ChordEditor({
   function deleteLine(id: string) {
     updateSong((s) => ({
       ...s,
-      chordLines: s.chordLines.filter(
-        (line) => line.id !== id,
-      ),
+      chordLines: s.chordLines.filter((line) => line.id !== id),
     }));
   }
 
@@ -117,29 +151,27 @@ export default function ChordEditor({
         </div>
 
         <p className="mb-5 text-sm text-slate-500">
-          Each record contains the chords above one lyric line.
-          Insert missing records wherever needed.
+          Each record contains the chords above one lyric line. Insert missing
+          records wherever needed.
         </p>
 
-        
-<details className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-  <summary className="cursor-pointer font-semibold text-teal-700">
-    Compare with original PDF
-  </summary>
+        <details className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <summary className="cursor-pointer font-semibold text-teal-700">
+            Compare with original PDF
+          </summary>
 
-  {pdfUrl ? (
-    <iframe
-      title={`Original PDF for ${song.title}`}
-      src={pdfUrl}
-      className="mt-4 h-[40vh] min-h-[280px] w-full rounded-lg border border-slate-300 bg-white"
-    />
-  ) : (
-    <p className="mt-3 text-sm text-slate-500">
-      No original PDF attached.
-    </p>
-  )}
-</details>
-
+          {pdfUrl ? (
+            <iframe
+              title={`Original PDF for ${song.title}`}
+              src={pdfUrl}
+              className="mt-4 h-[40vh] min-h-[280px] w-full rounded-lg border border-slate-300 bg-white"
+            />
+          ) : (
+            <p className="mt-3 text-sm text-slate-500">
+              No original PDF attached.
+            </p>
+          )}
+        </details>
 
         <div
           id="chord-records-scroll"
@@ -148,8 +180,7 @@ export default function ChordEditor({
           {song.chordLines.map((line, index) => {
             const showSection =
               index === 0 ||
-              song.chordLines[index - 1].section !==
-                line.section;
+              song.chordLines[index - 1].section !== line.section;
 
             return (
               <div
@@ -185,9 +216,7 @@ export default function ChordEditor({
                         placeholder="G  Em  C  D"
                         value={line.chords}
                         onChange={(e) =>
-                          updateLine(line.id, {
-                            chords: e.target.value,
-                          })
+                          updateChordText(line.id, e.target.value)
                         }
                       />
                     </label>
@@ -223,9 +252,7 @@ export default function ChordEditor({
                       <button
                         type="button"
                         className="rounded-lg border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50"
-                        onClick={() =>
-                          insertChordLine(line.id)
-                        }
+                        onClick={() => insertChordLine(line.id)}
                       >
                         + Insert below
                       </button>

@@ -13,9 +13,54 @@ const LEFT_PADDING = 16;
 const CHORD_GAP = 8;
 const CHORD_HORIZONTAL_PADDING = 12;
 
+const PASTEL_CHORD_COLORS = [
+  { backgroundColor: "#EAC1CB", color: "#6D2941" }, // Rose
+  { backgroundColor: "#C7D8F3", color: "#284B7D" }, // Blue
+  { backgroundColor: "#D6C9ED", color: "#52367A" }, // Lavender
+  { backgroundColor: "#F1D8A9", color: "#745016" }, // Honey
+  { backgroundColor: "#BFDCCF", color: "#225746" }, // Mint
+  { backgroundColor: "#F1CDB4", color: "#7A3A24" }, // Peach
+  { backgroundColor: "#C4E3E7", color: "#245B65" }, // Aqua
+  { backgroundColor: "#DFD2BE", color: "#5D482E" }, // Beige
+];
+
 export default function ChordPreview({ lyrics, placements, onChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [chordColors, setChordColors] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    setChordColors((previous) => {
+      const next = { ...previous };
+      let changed = false;
+
+      for (const placement of placements) {
+        if (next[placement.id] === undefined) {
+          next[placement.id] = Math.floor(
+            Math.random() * PASTEL_CHORD_COLORS.length,
+          );
+          changed = true;
+        }
+      }
+
+      return changed ? next : previous;
+    });
+  }, [placements]);
+
+  function changeChordColor(id: string) {
+    setChordColors((previous) => {
+      const current = previous[id] ?? 0;
+
+      // Always choose a different color.
+      const offset =
+        1 + Math.floor(Math.random() * (PASTEL_CHORD_COLORS.length - 1));
+
+      return {
+        ...previous,
+        [id]: (current + offset) % PASTEL_CHORD_COLORS.length,
+      };
+    });
+  }
 
   const visibleLyrics = lyrics || " ";
 
@@ -145,17 +190,19 @@ export default function ChordPreview({ lyrics, placements, onChange }: Props) {
             <button
               key={placement.id}
               type="button"
-              className={`absolute top-0 z-10 cursor-grab select-none rounded px-1.5 py-1 text-sm font-bold touch-none ${
+              className={`absolute top-0 z-10 cursor-grab select-none rounded px-1.5 py-1 text-sm font-bold touch-none transition-[filter,box-shadow] ${
                 draggingId === placement.id
-                  ? "bg-teal-200 text-teal-900"
-                  : "bg-teal-50 text-teal-700 hover:bg-teal-100"
+                  ? "ring-2 ring-slate-500 shadow-md"
+                  : "hover:brightness-95"
               }`}
               style={{
                 left,
+                ...PASTEL_CHORD_COLORS[chordColors[placement.id] ?? 0],
               }}
               onPointerDown={(event) => {
                 event.preventDefault();
                 event.currentTarget.setPointerCapture(event.pointerId);
+                 changeChordColor(placement.id);
                 setDraggingId(placement.id);
               }}
               onPointerMove={(event) => {

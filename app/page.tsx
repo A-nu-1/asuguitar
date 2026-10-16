@@ -81,7 +81,7 @@ export default function HomePage() {
         if (window.guitarAPI?.getSongs) {
           // Electron: actual SQLite songs.
           data = await window.guitarAPI.getSongs();
-       } else {
+        } else {
           // Chrome development demo.
           data = demoSongs.map((song) => ({
             id: song.id,
@@ -89,8 +89,10 @@ export default function HomePage() {
             song_type: song.song_type,
             class_date: song.class_date,
             created_at: song.created_at,
+            bar_count: song.bars?.length ?? 0,
+            capo: song.capo ?? 0,
           }));
-        } 
+        }
 
         if (active) setSongs(data);
       } catch (err) {
@@ -301,7 +303,26 @@ export default function HomePage() {
                   <span aria-label="PDF only"> 📄</span>
                 )}
               </span>
-
+              {song.song_type !== "tab" && (
+                <span
+                  className="
+      shrink-0 rounded-lg
+      bg-violet-100/80 px-2 py-1
+      text-sm font-bold text-violet-800
+      group-data-[magic-theme=midnight]:bg-violet-700/70
+      group-data-[magic-theme=midnight]:text-violet-100
+    "
+                  title={
+                    song.song_type === "melody"
+                      ? `${song.bar_count} bars`
+                      : `Capo ${song.capo ?? 0}`
+                  }
+                >
+                  {song.song_type === "melody"
+                    ? song.bar_count
+                    : (song.capo ?? 0)}
+                </span>
+              )}
               <span
                 aria-hidden="true"
                 className="shrink-0 text-base text-fuchsia-600 transition-transform group-hover/song:translate-x-1 group-data-[magic-theme=midnight]:text-fuchsia-300"

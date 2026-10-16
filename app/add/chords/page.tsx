@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as pdfjsLib from "pdfjs-dist";
@@ -18,6 +18,7 @@ type SaveDecision = "accepted" | "pdf_only";
 
 export default function AddChordSongPage() {
   const router = useRouter();
+  const saveSectionRef = useRef<HTMLElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -39,6 +40,19 @@ export default function AddChordSongPage() {
 
   const isDesktop =
     typeof window !== "undefined" && !!window.guitarAPI?.saveSong;
+
+  useEffect(() => {
+    if (!saveDecision) return;
+
+    const frame = requestAnimationFrame(() => {
+      saveSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [saveDecision]);
 
   useEffect(() => {
     if (!file) {
@@ -427,7 +441,10 @@ export default function AddChordSongPage() {
       )}
 
       {saveDecision && (
-        <section className="mt-8 rounded-xl border border-teal-200 bg-white p-5">
+        <section
+          ref={saveSectionRef}
+          className="mt-8 rounded-xl border border-teal-200 bg-white p-5"
+        >
           <h2 className="text-lg font-semibold text-slate-800">
             Ready to Save
           </h2>

@@ -72,6 +72,9 @@ export type LibrarySong = {
   song_type: "melody" | "tab" | "chords";
   class_date: string | null;
   created_at: string;
+
+  bar_count: number;
+  capo: number | null;
 };
 
 

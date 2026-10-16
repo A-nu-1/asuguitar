@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import * as pdfjsLib from "pdfjs-dist";
 import { useRouter } from "next/navigation";
@@ -38,9 +38,9 @@ export default function AddMelodyPage() {
 
   const router = useRouter();
 
-const [description, setDescription] = useState("");
-const [saving, setSaving] = useState(false);
-const [saveMessage, setSaveMessage] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState("");
 
   const [title, setTitle] = useState("");
   const [classDate, setClassDate] = useState("");
@@ -63,6 +63,20 @@ const [saveMessage, setSaveMessage] = useState("");
     setSaveDecision(null);
   }
 
+  const saveSectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!saveDecision) return;
+
+    const frame = requestAnimationFrame(() => {
+      saveSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [saveDecision]);
   async function handleExtract() {
     if (!file || extracting) return;
 
@@ -177,7 +191,7 @@ const [saveMessage, setSaveMessage] = useState("");
         title: songTitle,
         song_type: saveDecision === "accepted" ? "melody" : "tab",
         class_date: classDate || null,
-description: description.trim() || null,
+        description: description.trim() || null,
         youtube_url: youtubeUrl.trim() || null,
         pdf_filename: file.name,
         extraction_status: saveDecision,
@@ -206,76 +220,55 @@ description: description.trim() || null,
     URL.revokeObjectURL(url);
   }
 
-async function saveToDesktop() {
-  if (!file || !saveDecision || saving) return;
+  async function saveToDesktop() {
+    if (!file || !saveDecision || saving) return;
 
-  if (!window.guitarAPI?.saveSong) {
-    setSaveMessage(
-      "Permanent saving is available only in the Electron desktop app. Use Download Song JSON in demo mode."
-    );
-    return;
+    if (!window.guitarAPI?.saveSong) {
+      setSaveMessage(
+        "Permanent saving is available only in the Electron desktop app. Use Download Song JSON in demo mode.",
+      );
+      return;
+    }
+
+    if (!title.trim()) {
+      setError("Please enter a song title.");
+      return;
+    }
+
+    if (saveDecision === "accepted" && (!song || song.bars.length === 0)) {
+      setError("Please extract and accept melody bars first.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSaveMessage("");
+
+    try {
+      const pdfBytes = new Uint8Array(await file.arrayBuffer());
+
+      const result = await window.guitarAPI.saveSong({
+        title: title.trim(),
+        class_date: classDate || null,
+        description: description.trim() || null,
+        youtube_url: youtubeUrl.trim() || null,
+        extraction_status: saveDecision,
+        tempo_bpm: saveDecision === "accepted" ? (song?.tempo ?? null) : null,
+        time_signature:
+          saveDecision === "accepted" ? song?.timeSignature || null : null,
+        bars: saveDecision === "accepted" ? (song?.bars ?? []) : [],
+        pdf_bytes: pdfBytes,
+      });
+
+      setSaveMessage(`Saved "${result.title}" successfully!`);
+
+      router.push(`/songs?id=${encodeURIComponent(result.id)}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save song.");
+    } finally {
+      setSaving(false);
+    }
   }
-
-  if (!title.trim()) {
-    setError("Please enter a song title.");
-    return;
-  }
-
-  if (
-    saveDecision === "accepted" &&
-    (!song || song.bars.length === 0)
-  ) {
-    setError("Please extract and accept melody bars first.");
-    return;
-  }
-
-  setSaving(true);
-  setError("");
-  setSaveMessage("");
-
-  try {
-    const pdfBytes = new Uint8Array(
-      await file.arrayBuffer()
-    );
-
-    const result = await window.guitarAPI.saveSong({
-      title: title.trim(),
-      class_date: classDate || null,
-      description: description.trim() || null,
-      youtube_url: youtubeUrl.trim() || null,
-      extraction_status: saveDecision,
-      tempo_bpm:
-        saveDecision === "accepted"
-          ? song?.tempo ?? null
-          : null,
-      time_signature:
-        saveDecision === "accepted"
-          ? song?.timeSignature || null
-          : null,
-      bars:
-        saveDecision === "accepted"
-          ? song?.bars ?? []
-          : [],
-      pdf_bytes: pdfBytes,
-    });
-
-    setSaveMessage(
-      `Saved "${result.title}" successfully!`
-    );
-
-    router.push(
-      `/songs?id=${encodeURIComponent(result.id)}`
-    );
-  } catch (err) {
-    setError(
-      err instanceof Error
-        ? err.message
-        : "Could not save song."
-    );
-  } finally {
-    setSaving(false);
-  }
-}
 
   return (
     <main className="mx-auto max-w-6xl px-5 py-8">
@@ -335,21 +328,17 @@ async function saveToDesktop() {
             />
           </label>
         </div>
-        
-<label className="block text-sm font-medium text-slate-700">
-  Description / Class Notes
 
-  <textarea
-    value={description}
-    onChange={(event) =>
-      setDescription(event.target.value)
-    }
-    rows={4}
-    placeholder="Teacher's instructions, tricky sections, finger positions, reminders..."
-    className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"
-  />
-</label>
-
+        <label className="block text-sm font-medium text-slate-700">
+          Description / Class Notes
+          <textarea
+            value={description}
+            onChange={(event) => setDescription(event.target.value)}
+            rows={4}
+            placeholder="Teacher's instructions, tricky sections, finger positions, reminders..."
+            className="mt-2 w-full rounded-lg border border-slate-300 px-3 py-2"
+          />
+        </label>
 
         <div className="flex flex-wrap gap-3">
           <button
@@ -425,7 +414,10 @@ async function saveToDesktop() {
       )}
 
       {saveDecision && (
-        <section className="mt-6 rounded-xl border border-teal-200 bg-teal-50 p-5">
+        <section
+          ref={saveSectionRef}
+          className="mt-6 rounded-xl border border-teal-200 bg-teal-50 p-5"
+        >
           <h2 className="text-lg font-semibold text-teal-900">
             {saveDecision === "accepted"
               ? "✓ Melody extraction accepted"
@@ -438,43 +430,41 @@ async function saveToDesktop() {
               : "The extracted bars will be excluded. The original PDF will be used directly in Tab practice mode."}
           </p>
 
-          
-<div className="mt-4 flex flex-wrap gap-3">
-  {window.guitarAPI?.saveSong ? (
-    <button
-      type="button"
-      onClick={saveToDesktop}
-      disabled={saving}
-      className="rounded-lg bg-teal-700 px-5 py-2 font-semibold text-white disabled:opacity-50"
-    >
-      {saving
-        ? "Saving..."
-        : saveDecision === "accepted"
-          ? "Save Melody Song"
-          : "Save PDF-only Song"}
-    </button>
-  ) : (
-    <button
-      type="button"
-      onClick={downloadSongJson}
-      className="rounded-lg bg-teal-700 px-5 py-2 font-semibold text-white"
-    >
-      Download Song JSON
-    </button>
-  )}
-</div>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {window.guitarAPI?.saveSong ? (
+              <button
+                type="button"
+                onClick={saveToDesktop}
+                disabled={saving}
+                className="rounded-lg bg-teal-700 px-5 py-2 font-semibold text-white disabled:opacity-50"
+              >
+                {saving
+                  ? "Saving..."
+                  : saveDecision === "accepted"
+                    ? "Save Melody Song"
+                    : "Save PDF-only Song"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={downloadSongJson}
+                className="rounded-lg bg-teal-700 px-5 py-2 font-semibold text-white"
+              >
+                Download Song JSON
+              </button>
+            )}
+          </div>
 
-{saveMessage && (
-  <p role="status" className="mt-3 text-sm text-teal-800">
-    {saveMessage}
-  </p>
-)}
-
+          {saveMessage && (
+            <p role="status" className="mt-3 text-sm text-teal-800">
+              {saveMessage}
+            </p>
+          )}
 
           <p className="mt-3 text-xs text-teal-800">
             {window.guitarAPI?.saveSong
-  ? "The song and original PDF will be saved locally."
-  : "Demo mode: download JSON to keep your extracted song data. No database saving."}
+              ? "The song and original PDF will be saved locally."
+              : "Demo mode: download JSON to keep your extracted song data. No database saving."}
           </p>
         </section>
       )}

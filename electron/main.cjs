@@ -109,6 +109,7 @@ function createWindow(port) {
   const window = new BrowserWindow({
     width: 1200,
     height: 850,
+    icon: path.join(__dirname, "../build/icon.ico"),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -177,6 +178,9 @@ app.whenReady().then(async () => {
         pdf_filename,
         extraction_status,
         capo,
+        (SELECT COUNT(*)
+         FROM song_bars
+         WHERE song_id = songs.id) AS bar_count,
         strumming_pattern,
         tempo_bpm,
         time_signature,

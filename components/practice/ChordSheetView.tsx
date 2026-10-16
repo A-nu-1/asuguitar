@@ -1,4 +1,6 @@
+"use client";
 
+import { useMemo } from "react";
 import type { ChordLine, ChordPlacement } from "@/types/guitar";
 
 type Props = {
@@ -9,7 +11,24 @@ const CHAR_WIDTH = 9;
 const LEFT_PADDING = 16;
 const CHORD_GAP = 8;
 
-function ChordRow({ line }: { line: ChordLine }) {
+const PASTEL_CHORD_COLORS = [
+  { backgroundColor: "#EAC1CB", color: "#6D2941" }, // rose
+  { backgroundColor: "#C7D8F3", color: "#284B7D" }, // blue
+  { backgroundColor: "#D6C9ED", color: "#52367A" }, // lavender
+  { backgroundColor: "#F1D8A9", color: "#745016" }, // honey
+  { backgroundColor: "#BFDCCF", color: "#225746" }, // mint
+  { backgroundColor: "#F1CDB4", color: "#7A3A24" }, // peach
+  { backgroundColor: "#C4E3E7", color: "#245B65" }, // aqua
+  { backgroundColor: "#DFD2BE", color: "#5D482E" }, // beige
+];
+
+function ChordRow({
+  line,
+  chordColors,
+}: {
+  line: ChordLine;
+  chordColors: Record<string, number>;
+}) {
   const lyrics = line.lyrics || " ";
   const placements = line.placements ?? [];
 
@@ -58,15 +77,23 @@ function ChordRow({ line }: { line: ChordLine }) {
         className="relative h-20 font-mono"
         style={{ width }}
       >
-        {displayed.map(({ placement, left }) => (
-          <span
-            key={placement.id}
-            className="absolute top-0 whitespace-nowrap rounded bg-teal-50 px-1.5 py-1 text-sm font-bold text-teal-700"
-            style={{ left }}
-          >
-            {placement.chord}
-          </span>
-        ))}
+        {displayed.map(({ placement, left }) => {
+          const colorIndex = chordColors[placement.id] ?? 0;
+          const colorStyle = PASTEL_CHORD_COLORS[colorIndex];
+
+          return (
+            <span
+              key={placement.id}
+              className="absolute top-0 whitespace-nowrap rounded px-1.5 py-1 text-sm font-bold shadow-sm"
+              style={{
+                left,
+                ...colorStyle,
+              }}
+            >
+              {placement.chord}
+            </span>
+          );
+        })}
 
         <div
           className="absolute top-11 whitespace-pre text-base text-slate-800"
@@ -80,6 +107,20 @@ function ChordRow({ line }: { line: ChordLine }) {
 }
 
 export default function ChordSheetView({ lines }: Props) {
+  const chordColors = useMemo(() => {
+    const map: Record<string, number> = {};
+
+    for (const line of lines) {
+      for (const placement of line.placements ?? []) {
+        map[placement.id] = Math.floor(
+          Math.random() * PASTEL_CHORD_COLORS.length
+        );
+      }
+    }
+
+    return map;
+  }, [lines]);
+
   if (lines.length === 0) {
     return (
       <p className="text-sm text-slate-500">
@@ -105,7 +146,7 @@ export default function ChordSheetView({ lines }: Props) {
               </h3>
             )}
 
-            <ChordRow line={line} />
+            <ChordRow line={line} chordColors={chordColors} />
           </div>
         );
       })}
