@@ -1,6 +1,12 @@
 "use client";
 import { useRef, useState } from "react";
-import type { Bar, Note, Song } from "@/types/guitar";
+import type {
+  Bar,
+  Note,
+  Song,
+  MelodySymbol,
+  MelodySymbolType,
+} from "@/types/guitar";
 type Props = {
   song: Song;
   updateSong: (fn: (song: Song) => Song) => void;
@@ -15,6 +21,107 @@ const note = (): Note => ({
   beat: null,
   duration: null,
 });
+
+const SYMBOL_OPTIONS: {
+  type: MelodySymbolType;
+  label: string;
+  preview: string;
+}[] = [
+  { type: "hammer-on", label: "Hammer-on", preview: "⌒ H" },
+  { type: "pull-off", label: "Pull-off", preview: "⌒ P" },
+  { type: "slide-up", label: "Slide up", preview: "/" },
+  { type: "slide-down", label: "Slide down", preview: "\\" },
+  { type: "rest-quarter", label: "Quarter rest", preview: "𝄽" },
+  { type: "rest-eighth", label: "Eighth rest", preview: "𝄾" },
+  { type: "rest-half", label: "Half rest", preview: "𝄼" },
+  { type: "rest-whole", label: "Whole rest", preview: "𝄻" },
+  { type: "coda", label: "Coda", preview: "𝄌" },
+  { type: "segno", label: "Segno", preview: "𝄋" },
+  { type: "finger", label: "Finger number", preview: "②" },
+  { type: "text", label: "Text symbol", preview: "T" },
+];
+
+const clamp = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(max, value));
+
+function SymbolDrawing({ symbol }: { symbol: MelodySymbol }) {
+  const isArc = symbol.type === "hammer-on" || symbol.type === "pull-off";
+
+  const isSlide = symbol.type === "slide-up" || symbol.type === "slide-down";
+
+  if (isArc) {
+    return (
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        aria-label={symbol.type}
+      >
+        <path
+          d="M 3 35 Q 50 -24 97 35"
+          fill="none"
+          stroke="#9333ea"
+          strokeWidth="3"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
+
+  if (isSlide) {
+    return (
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+      >
+        <line
+          x1="8"
+          y1={symbol.type === "slide-up" ? 36 : 4}
+          x2="92"
+          y2={symbol.type === "slide-up" ? 4 : 36}
+          stroke="#9333ea"
+          strokeWidth="3"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
+
+  const glyph =
+    symbol.type === "text"
+      ? symbol.text || "S"
+      : (SYMBOL_OPTIONS.find((item) => item.type === symbol.type)?.preview ??
+        "?");
+
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-label={symbol.type}
+      style={{ overflow: "visible" }}
+    >
+      <text
+        x="50"
+        y="72"
+        textAnchor="middle"
+        fontFamily='"Segoe UI Symbol", "Cambria Math", sans-serif'
+        fontSize="72"
+        fill="#7e22ce"
+      >
+        {symbol.type === "finger"
+          ? "①②③④⑤"[clamp(Number(symbol.text ?? 2), 1, 5) - 1]
+          : glyph}
+      </text>
+    </svg>
+  );
+}
+
 function getNotePosition(n: Note, notes: Note[]): number {
   if (n.position !== undefined) {
     return Math.max(0, Math.min(94, n.position));
@@ -38,6 +145,61 @@ export default function MelodyEditor({
   const [selected, setSelected] = useState(0);
   const draggingNoteId = useRef<string | null>(null);
   const active = song.bars[selected];
+
+  const [selectedSymbolId, setSelectedSymbolId] = useState<string | null>(null);
+
+  const draggingSymbolId = useRef<string | null>(null);
+
+  const activeSymbol =
+    active?.symbols?.find((symbol) => symbol.id === selectedSymbolId) ?? null;
+
+  function addSymbol(type: MelodySymbolType) {
+    const symbol: MelodySymbol = {
+      id: uid(),
+      type,
+      x: 45,
+      y: 22,
+      width:
+        type === "hammer-on" || type === "pull-off"
+          ? 30
+          : type.startsWith("slide-")
+            ? 12
+            : 10,
+      height: type === "hammer-on" || type === "pull-off" ? 20 : 15,
+      rotation: 0,
+      ...(type === "finger" ? { text: "2" } : {}),
+      ...(type === "text" ? { text: "S" } : {}),
+    };
+
+    updateBar((bar) => ({
+      ...bar,
+      symbols: [...(bar.symbols ?? []), symbol],
+    }));
+
+    setSelectedSymbolId(symbol.id);
+  }
+
+  function updateSymbol(symbolId: string, changes: Partial<MelodySymbol>) {
+    updateBar((bar) => ({
+      ...bar,
+      symbols: (bar.symbols ?? []).map((symbol) =>
+        symbol.id === symbolId ? { ...symbol, ...changes } : symbol,
+      ),
+    }));
+  }
+
+  function deleteSelectedSymbol() {
+    if (!selectedSymbolId) return;
+
+    updateBar((bar) => ({
+      ...bar,
+      symbols: (bar.symbols ?? []).filter(
+        (symbol) => symbol.id !== selectedSymbolId,
+      ),
+    }));
+
+    setSelectedSymbolId(null);
+  }
 
   function createEmptyBar(): Bar {
     return {
@@ -239,7 +401,132 @@ export default function MelodyEditor({
                 Next Bar →
               </button>
             </div>
-            
+
+            <details className="melody-symbol-panel" open>
+              <summary>🎼 Musical Symbols</summary>
+
+              <p className="text-xs text-slate-500">
+                Choose a symbol to add it to this bar. Drag it into position on
+                the strings.
+              </p>
+
+              <div className="melody-symbol-palette">
+                {SYMBOL_OPTIONS.map((option) => (
+                  <button
+                    key={option.type}
+                    type="button"
+                    onClick={() => addSymbol(option.type)}
+                    title={`Add ${option.label}`}
+                    className="melody-symbol-button"
+                  >
+                    <span className="melody-symbol-icon">{option.preview}</span>
+                    <span>{option.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {activeSymbol && (
+                <div className="melody-symbol-properties">
+                  <strong>
+                    Selected:{" "}
+                    {
+                      SYMBOL_OPTIONS.find(
+                        (item) => item.type === activeSymbol.type,
+                      )?.label
+                    }
+                  </strong>
+
+                  <label>
+                    Width
+                    <input
+                      type="range"
+                      min="4"
+                      max="90"
+                      value={activeSymbol.width ?? 10}
+                      onChange={(event) =>
+                        updateSymbol(activeSymbol.id, {
+                          width: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+
+                  <label>
+                    Height
+                    <input
+                      type="range"
+                      min="6"
+                      max="70"
+                      value={activeSymbol.height ?? 15}
+                      onChange={(event) =>
+                        updateSymbol(activeSymbol.id, {
+                          height: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+
+                  {activeSymbol.type === "text" && (
+                    <label>
+                      Text
+                      <input
+                        type="text"
+                        value={activeSymbol.text ?? ""}
+                        maxLength={3}
+                        onChange={(event) =>
+                          updateSymbol(activeSymbol.id, {
+                            text: event.target.value,
+                          })
+                        }
+                      />
+                    </label>
+                  )}
+                  <label>
+                    Rotation
+                    <input
+                      type="range"
+                      min="-180"
+                      max="180"
+                      value={activeSymbol.rotation ?? 0}
+                      onChange={(event) =>
+                        updateSymbol(activeSymbol.id, {
+                          rotation: Number(event.target.value),
+                        })
+                      }
+                    />
+                  </label>
+
+                  {activeSymbol.type === "finger" && (
+                    <label>
+                      Finger number
+                      <select
+                        value={activeSymbol.text ?? "2"}
+                        onChange={(event) =>
+                          updateSymbol(activeSymbol.id, {
+                            text: event.target.value,
+                          })
+                        }
+                      >
+                        {[1, 2, 3, 4, 5].map((number) => (
+                          <option key={number} value={number}>
+                            {number}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+
+                  <button
+                    type="button"
+                    className="danger"
+                    onClick={deleteSelectedSymbol}
+                  >
+                    🗑 Delete Symbol
+                  </button>
+                </div>
+              )}
+            </details>
+
             <div className="tabheading">
               Tab preview{" "}
               <small>
@@ -355,6 +642,83 @@ export default function MelodyEditor({
                   </div>
                 </div>
               ))}
+
+              <div className="melody-symbol-layer">
+                {(active.symbols ?? []).map((symbol) => (
+                  <div
+                    key={symbol.id}
+                    className={`melody-symbol-placement ${
+                      selectedSymbolId === symbol.id ? "selected" : ""
+                    }`}
+                    style={{
+                      left: `${symbol.x}%`,
+                      top: `${symbol.y}%`,
+                      width: `${symbol.width ?? 10}%`,
+                      height: `${symbol.height ?? 15}%`,
+                      transform: `rotate(${symbol.rotation ?? 0}deg)`,
+                      transformOrigin: "center",
+                    }}
+                    title="Drag to move this symbol"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setSelectedSymbolId(symbol.id);
+                    }}
+                    onPointerDown={(event) => {
+                      if (event.button !== 0) return;
+
+                      event.preventDefault();
+                      event.stopPropagation();
+
+                      draggingSymbolId.current = symbol.id;
+                      setSelectedSymbolId(symbol.id);
+                      event.currentTarget.setPointerCapture(event.pointerId);
+                    }}
+                    onPointerMove={(event) => {
+                      if (draggingSymbolId.current !== symbol.id) return;
+
+                      const layer = event.currentTarget.parentElement;
+                      if (!layer) return;
+
+                      const rect = layer.getBoundingClientRect();
+
+                      const x = clamp(
+                        ((event.clientX - rect.left) / rect.width) * 100 -
+                          (symbol.width ?? 10) / 2,
+                        0,
+                        100 - (symbol.width ?? 10),
+                      );
+
+                      const y = clamp(
+                        ((event.clientY - rect.top) / rect.height) * 100 -
+                          (symbol.height ?? 15) / 2,
+                        0,
+                        100 - (symbol.height ?? 15),
+                      );
+
+                      updateSymbol(symbol.id, {
+                        x: Math.round(x * 10) / 10,
+                        y: Math.round(y * 10) / 10,
+                      });
+                    }}
+                    onPointerUp={(event) => {
+                      draggingSymbolId.current = null;
+
+                      if (
+                        event.currentTarget.hasPointerCapture(event.pointerId)
+                      ) {
+                        event.currentTarget.releasePointerCapture(
+                          event.pointerId,
+                        );
+                      }
+                    }}
+                    onPointerCancel={() => {
+                      draggingSymbolId.current = null;
+                    }}
+                  >
+                    <SymbolDrawing symbol={symbol} />
+                  </div>
+                ))}
+              </div>
             </div>
             <div className="sidehead">
               <h3>Notes ({active.notes.length})</h3>
@@ -452,17 +816,17 @@ export default function MelodyEditor({
                 </div>
               ))}
               <label className="barlyrics">
-              Lyrics / notes for this bar{" "}
-              <small>(optional; saved with this bar)</small>
-              <textarea
-                rows={3}
-                placeholder="Type lyrics or teacher notes for this bar…"
-                value={active.lyrics ?? ""}
-                onChange={(e) =>
-                  updateBar((b) => ({ ...b, lyrics: e.target.value }))
-                }
-              />
-            </label>
+                Lyrics / notes for this bar{" "}
+                <small>(optional; saved with this bar)</small>
+                <textarea
+                  rows={3}
+                  placeholder="Type lyrics or teacher notes for this bar…"
+                  value={active.lyrics ?? ""}
+                  onChange={(e) =>
+                    updateBar((b) => ({ ...b, lyrics: e.target.value }))
+                  }
+                />
+              </label>
             </div>
           </>
         ) : (

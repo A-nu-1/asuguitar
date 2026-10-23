@@ -26,12 +26,48 @@ export type Note = {
   position?: number;
 };
 
+export type MelodySymbolType =
+  | "hammer-on"
+  | "pull-off"
+  | "slide-up"
+  | "slide-down"
+  | "rest-quarter"
+  | "rest-eighth"
+  | "rest-half"
+  | "rest-whole"
+  | "coda"
+  | "segno"
+  | "finger"
+  | "text";
+
+export type MelodySymbol = {
+  id: string;
+  type: MelodySymbolType;
+
+  // Position inside the bar, as percentages.
+  x: number;
+  y: number;
+
+  // Optional dimensions for arcs and larger symbols.
+  width?: number;
+  height?: number;
+
+  // Optional destination for a cross-bar connection.
+  endBarId?: string | null;
+
+  // For circled fingering numbers.
+  text?: string;
+
+  rotation?: number;
+};
+
 export type Bar = {
   id: string;
   number: number;
   section: string;
   lyrics: string;
   notes: Note[];
+  symbols?: MelodySymbol[];
 };
 
 export type ChordPlacement = {
@@ -91,6 +127,7 @@ export type SongSaveBar = {
     sourceY?: number;
     position?: number;
   }>;
+  symbols?: MelodySymbol[];
 };
 
 export type GuitarAPI = {

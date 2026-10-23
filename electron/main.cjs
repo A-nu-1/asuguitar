@@ -219,7 +219,8 @@ app.whenReady().then(async () => {
         bar_number,
         section,
         lyrics,
-        notes
+        notes,
+        symbols
       FROM song_bars
       WHERE song_id = ?
       ORDER BY bar_number ASC
@@ -233,6 +234,7 @@ app.whenReady().then(async () => {
         bars: bars.map((bar) => ({
           ...bar,
           notes: JSON.parse(bar.notes || "[]"),
+          symbols: JSON.parse(bar.symbols || "[]"),
         })),
       };
     });

@@ -1,4 +1,3 @@
-
 const { app } = require("electron");
 const { randomUUID } = require("node:crypto");
 const fs = require("node:fs");
@@ -38,9 +37,7 @@ function updateSong(payload) {
 
   const database = getDatabase();
 
-  const existing = database
-    .prepare("SELECT * FROM songs WHERE id = ?")
-    .get(id);
+  const existing = database.prepare("SELECT * FROM songs WHERE id = ?").get(id);
 
   if (!existing) {
     throw new Error("Song not found.");
@@ -55,16 +52,11 @@ function updateSong(payload) {
       throw new Error("Invalid PDF data.");
     }
 
-    if (
-      pdf_bytes.length === 0 ||
-      pdf_bytes.length > MAX_PDF_SIZE
-    ) {
+    if (pdf_bytes.length === 0 || pdf_bytes.length > MAX_PDF_SIZE) {
       throw new Error("PDF must be between 1 byte and 50 MB.");
     }
 
-    const header = Buffer.from(
-      pdf_bytes.subarray(0, 5)
-    ).toString("ascii");
+    const header = Buffer.from(pdf_bytes.subarray(0, 5)).toString("ascii");
 
     if (header !== "%PDF-") {
       throw new Error("The selected file is not a PDF.");
@@ -72,11 +64,7 @@ function updateSong(payload) {
 
     newPdfFilename = `${randomUUID()}.pdf`;
 
-    const pdfFolder = path.join(
-      app.getPath("userData"),
-      "data",
-      "pdfs"
-    );
+    const pdfFolder = path.join(app.getPath("userData"), "data", "pdfs");
 
     fs.mkdirSync(pdfFolder, { recursive: true });
 
@@ -87,28 +75,38 @@ function updateSong(payload) {
   // Omitting bars leaves them untouched.
   if (bars !== undefined) {
     if (existing.song_type !== "melody") {
-      throw new Error(
-        "Bar editing is only available for melody songs."
-      );
+      throw new Error("Bar editing is only available for melody songs.");
     }
 
     if (!Array.isArray(bars)) {
       throw new Error("Invalid melody bars.");
     }
 
+    const seenBarIds = new Set();
+
     for (const bar of bars) {
-      if (!bar || !Array.isArray(bar.notes)) {
+      if (
+        !bar ||
+        !Array.isArray(bar.notes) ||
+        typeof bar.id !== "string" ||
+        !bar.id.trim() ||
+        (bar.symbols !== undefined && !Array.isArray(bar.symbols))
+      ) {
         throw new Error("Invalid melody bar data.");
       }
+
+      if (seenBarIds.has(bar.id)) {
+        throw new Error(`Duplicate bar ID: ${bar.id}`);
+      }
+
+      seenBarIds.add(bar.id);
     }
   }
 
   // Supplying chord lines updates a chord song.
   if (chord_lines !== undefined) {
     if (existing.song_type !== "chords") {
-      throw new Error(
-        "Chord editing is only available for chord songs."
-      );
+      throw new Error("Chord editing is only available for chord songs.");
     }
 
     if (!Array.isArray(chord_lines)) {
@@ -118,11 +116,7 @@ function updateSong(payload) {
 
   const nextCapo = capo ?? existing.capo ?? 0;
 
-  if (
-    !Number.isInteger(nextCapo) ||
-    nextCapo < 0 ||
-    nextCapo > 12
-  ) {
+  if (!Number.isInteger(nextCapo) || nextCapo < 0 || nextCapo > 12) {
     throw new Error("Capo must be between 0 and 12.");
   }
 
@@ -140,7 +134,8 @@ function updateSong(payload) {
     transactionStarted = true;
 
     database
-      .prepare(`
+      .prepare(
+        `
         UPDATE songs
         SET
           title = ?,
@@ -155,7 +150,8 @@ function updateSong(payload) {
           chord_lines = ?,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `)
+      `,
+      )
       .run(
         title.trim(),
         class_date || null,
@@ -169,35 +165,88 @@ function updateSong(payload) {
         chord_lines !== undefined
           ? JSON.stringify(chord_lines)
           : existing.chord_lines,
-        id
+        id,
       );
 
     if (bars !== undefined) {
-      database
-        .prepare("DELETE FROM song_bars WHERE song_id = ?")
-        .run(id);
+      // Existing IDs must survive editing because YouTube
+      // synchronization references these exact bar IDs.
+      const existingBars = database
+        .prepare(
+          `
+      SELECT id
+      FROM song_bars
+      WHERE song_id = ?
+    `,
+        )
+        .all(id);
+
+      const existingIds = new Set(existingBars.map((bar) => bar.id));
+
+      const incomingIds = new Set(bars.map((bar) => bar.id));
+
+      const updateBar = database.prepare(`
+    UPDATE song_bars
+    SET
+      bar_number = ?,
+      section = ?,
+      lyrics = ?,
+      notes = ?,
+      symbols = ?
+    WHERE id = ? AND song_id = ?
+  `);
 
       const insertBar = database.prepare(`
-        INSERT INTO song_bars (
-          id,
-          song_id,
-          bar_number,
-          section,
-          lyrics,
-          notes
-        )
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
+    INSERT INTO song_bars (
+      id,
+      song_id,
+      bar_number,
+      section,
+      lyrics,
+      notes,
+      symbols
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
 
+      const deleteBar = database.prepare(`
+    DELETE FROM song_bars
+    WHERE id = ? AND song_id = ?
+  `);
+
+      // Update existing bars; insert only genuinely new ones.
       for (const [index, bar] of bars.entries()) {
-        insertBar.run(
-          bar.id || randomUUID(),
-          id,
-          index + 1,
-          bar.section || null,
-          bar.lyrics || null,
-          JSON.stringify(bar.notes)
-        );
+        const number = index + 1;
+        const section = bar.section || null;
+        const lyrics = bar.lyrics || null;
+        const notes = JSON.stringify(bar.notes);
+        const symbols = JSON.stringify(bar.symbols ?? []);
+
+        if (existingIds.has(bar.id)) {
+          const result = updateBar.run(
+            number,
+            section,
+            lyrics,
+            notes,
+            symbols,
+            bar.id,
+            id,
+          );
+
+          if (result.changes !== 1) {
+            throw new Error(`Could not update bar ${number}.`);
+          }
+        } else {
+          insertBar.run(bar.id, id, number, section, lyrics, notes, symbols);
+        }
+      }
+
+      // Delete only bars actually removed in the editor.
+      // Their timing mappings are intentionally cascaded.
+      for (const oldBar of existingBars) {
+        if (!incomingIds.has(oldBar.id)) {
+          deleteBar.run(oldBar.id, id);
+        }
       }
     }
 
@@ -208,8 +257,7 @@ function updateSong(payload) {
       id,
       title: title.trim(),
       song_type: existing.song_type,
-      pdf_filename:
-        newPdfFilename || existing.pdf_filename,
+      pdf_filename: newPdfFilename || existing.pdf_filename,
       updated: true,
     };
   } catch (error) {
@@ -226,10 +274,7 @@ function updateSong(payload) {
       try {
         fs.rmSync(newPdfPath, { force: true });
       } catch (cleanupError) {
-        console.error(
-          "New PDF cleanup failed:",
-          cleanupError
-        );
+        console.error("New PDF cleanup failed:", cleanupError);
       }
     }
 

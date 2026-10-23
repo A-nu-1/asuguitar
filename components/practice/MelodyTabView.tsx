@@ -1,4 +1,4 @@
-import type { Bar, Note } from "@/types/guitar";
+import type { Bar, Note, MelodySymbol } from "@/types/guitar";
 
 type Props = {
   bars: Bar[];
@@ -36,6 +36,96 @@ function getNotePosition(note: Note, notes: Note[]): number {
   const index = notes.findIndex((item) => item.id === note.id);
 
   return notes.length > 0 ? 10 + (index / notes.length) * 80 : 10;
+}
+
+function PracticeSymbol({ symbol }: { symbol: MelodySymbol }) {
+  const isArc = symbol.type === "hammer-on" || symbol.type === "pull-off";
+
+  const isSlide = symbol.type === "slide-up" || symbol.type === "slide-down";
+
+  if (isArc) {
+    return (
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        aria-label={symbol.type}
+        style={{ overflow: "visible" }}
+      >
+        <path
+          d="M 3 35 Q 50 -24 97 35"
+          fill="none"
+          stroke="#9333ea"
+          strokeWidth="2.5"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
+
+  if (isSlide) {
+    return (
+      <svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 100 40"
+        preserveAspectRatio="none"
+        aria-label={symbol.type}
+      >
+        <line
+          x1="8"
+          y1={symbol.type === "slide-up" ? 36 : 4}
+          x2="92"
+          y2={symbol.type === "slide-up" ? 4 : 36}
+          stroke="#9333ea"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
+
+  const glyphs: Record<string, string> = {
+    "rest-quarter": "𝄽",
+    "rest-eighth": "𝄾",
+    "rest-half": "𝄼",
+    "rest-whole": "𝄻",
+    coda: "𝄌",
+    segno: "𝄋",
+  };
+
+  const number = Math.max(1, Math.min(5, Number(symbol.text ?? 2) || 2));
+
+  const glyph =
+  symbol.type === "finger"
+    ? "①②③④⑤"[number - 1]
+    : symbol.type === "text"
+      ? symbol.text || "S"
+      : (glyphs[symbol.type] ?? "?");
+
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
+      aria-label={symbol.type}
+      style={{ overflow: "visible" }}
+    >
+      <text
+        x="50"
+        y="72"
+        textAnchor="middle"
+        fontFamily='"Segoe UI Symbol", "Cambria Math", sans-serif'
+        fontSize="72"
+        fill="#7e22ce"
+      >
+        {glyph}
+      </text>
+    </svg>
+  );
 }
 
 function TabBar({
@@ -100,6 +190,40 @@ function TabBar({
               </span>
             );
           })}
+
+        {/* Saved musical symbols — display only */}
+        <div
+          className="pointer-events-none absolute inset-x-2 top-6 bottom-6 z-20"
+          aria-label="Musical symbols"
+        >
+          {(bar.symbols ?? []).map((symbol) => {
+            const width = Math.max(4, Math.min(90, symbol.width ?? 10));
+
+            const height = Math.max(6, Math.min(70, symbol.height ?? 15));
+
+            const x = Math.max(0, Math.min(100 - width, symbol.x));
+
+            const y = Math.max(0, Math.min(100 - height, symbol.y));
+
+            return (
+              <div
+                key={symbol.id}
+                className="pointer-events-none absolute"
+                style={{
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  width: `${width}%`,
+                  height: `${height}%`,
+                  transform: `rotate(${symbol.rotation ?? 0}deg)`,
+                  transformOrigin: "center",
+                }}
+                title={symbol.type}
+              >
+                <PracticeSymbol symbol={symbol} />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {bar.lyrics && (

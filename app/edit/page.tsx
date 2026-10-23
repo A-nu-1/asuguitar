@@ -14,6 +14,7 @@ type StoredBar = {
   section: string | null;
   lyrics: string | null;
   notes: Bar["notes"];
+  symbols?: Bar["symbols"];
 };
 
 type StoredSong = {
@@ -88,7 +89,7 @@ export default function EditSongPage() {
               originalPdf = objectUrl;
             }
           }
-       } else {
+        } else {
           const demo = demoSongs.find((item) => item.id === id);
 
           if (demo) {
@@ -145,6 +146,7 @@ export default function EditSongPage() {
               section: bar.section ?? "Unassigned",
               lyrics: bar.lyrics ?? "",
               notes: bar.notes,
+              symbols: bar.symbols ?? [],
             })),
           });
         }

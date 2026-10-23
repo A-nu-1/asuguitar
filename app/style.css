@@ -415,3 +415,135 @@ footer {
 .noterow {
   min-width: 580px;
 }
+
+
+/* Musical symbol editor */
+
+.melody-symbol-panel {
+  margin: 16px 0;
+  padding: 14px;
+  border: 1px solid #ddd6fe;
+  border-radius: 12px;
+  background: #faf5ff;
+}
+
+.melody-symbol-panel summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: #6b21a8;
+  margin-bottom: 10px;
+}
+
+.melody-symbol-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.melody-symbol-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  border: 1px solid #ddd6fe;
+  border-radius: 9px;
+  background: white;
+  color: #581c87;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.melody-symbol-button:hover {
+  background: #ede9fe;
+  border-color: #a855f7;
+}
+
+.melody-symbol-icon {
+  font-family: "Segoe UI Symbol", "Cambria Math", sans-serif;
+  font-size: 25px;
+  line-height: 1.4;
+}
+
+.melody-symbol-properties {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #ddd6fe;
+  border-radius: 9px;
+  background: white;
+  font-size: 12px;
+}
+
+.melody-symbol-properties label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.melody-symbol-properties input[type="range"] {
+  width: 110px;
+  padding: 0;
+}
+
+/* Keep the original fret editing layout intact. */
+.tabpreview {
+  position: relative;
+}
+
+/* Overlay aligns with the six string rows. */
+.melody-symbol-layer {
+  position: absolute;
+  top: 18px;
+  left: 44px;
+  right: 16px;
+  height: 186px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.melody-symbol-placement {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  pointer-events: auto;
+  border: 1px solid transparent;
+  border-radius: 5px;
+}
+
+.melody-symbol-placement:hover {
+  border-color: #c084fc;
+  background: rgb(243 232 255 / 35%);
+}
+
+.melody-symbol-placement.selected {
+  border: 1px dashed #9333ea;
+  background: rgb(243 232 255 / 50%);
+}
+
+.melody-symbol-placement:active {
+  cursor: grabbing;
+}
+
+.melody-symbol-placement svg {
+  overflow: visible;
+  pointer-events: none;
+}
+
+.melody-symbol-glyph {
+  font-family: "Segoe UI Symbol", "Cambria Math", sans-serif;
+  font-size: 30px;
+  line-height: 1;
+  color: #7e22ce;
+  pointer-events: none;
+}

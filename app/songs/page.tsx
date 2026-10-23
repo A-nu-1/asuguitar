@@ -28,6 +28,7 @@ type LocalSong = {
     section: string | null;
     lyrics: string | null;
     notes: Bar["notes"];
+     symbols?: Bar["symbols"];
   }>;
   demo_timings?: {
   barId: string;
@@ -128,6 +129,7 @@ export default function SongPage() {
       section: bar.section ?? "Unassigned",
       lyrics: bar.lyrics ?? "",
       notes: bar.notes,
+      symbols: bar.symbols ?? [],
     })) ?? [];
 
   return (

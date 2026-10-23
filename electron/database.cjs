@@ -109,29 +109,38 @@ CREATE TABLE IF NOT EXISTS song_pdf_timings (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
 
   song_id TEXT NOT NULL,
-  video_id TEXT NOT NULL,
+   video_id TEXT NOT NULL,
 
-  page_number INTEGER NOT NULL
+   page_number INTEGER NOT NULL
     CHECK (page_number >= 1),
 
-  page_position REAL NOT NULL
+   page_position REAL NOT NULL
     CHECK (page_position >= 0 AND page_position <= 1),
 
-  seconds REAL NOT NULL
+   seconds REAL NOT NULL
     CHECK (seconds >= 0),
 
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-  FOREIGN KEY (song_id)
+   FOREIGN KEY (song_id)
     REFERENCES songs(id)
     ON DELETE CASCADE
-);
+    );
 
-CREATE INDEX IF NOT EXISTS idx_song_pdf_timings
+    CREATE INDEX IF NOT EXISTS idx_song_pdf_timings
   ON song_pdf_timings(song_id, video_id, seconds);
 
 
   `);
+
+  const barColumns = db.prepare("PRAGMA table_info(song_bars)").all();
+
+  if (!barColumns.some((column) => column.name === "symbols")) {
+    db.exec(`
+    ALTER TABLE song_bars
+    ADD COLUMN symbols TEXT NOT NULL DEFAULT '[]'
+  `);
+  }
 
   console.log("SQLite database ready:", databasePath);
 

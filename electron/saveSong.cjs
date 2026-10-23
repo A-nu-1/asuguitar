@@ -184,14 +184,15 @@ function saveSong(payload) {
 
     const insertBar = database.prepare(`
       INSERT INTO song_bars (
-        id,
-        song_id,
-        bar_number,
-        section,
-        lyrics,
-        notes
-      )
-      VALUES (?, ?, ?, ?, ?, ?)
+  id,
+  song_id,
+  bar_number,
+  section,
+  lyrics,
+  notes,
+  symbols
+)
+VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     for (const [index, bar] of savedBars.entries()) {
@@ -207,7 +208,8 @@ function saveSong(payload) {
         index + 1,
         bar.section || null,
         bar.lyrics || null,
-        JSON.stringify(bar.notes)
+        JSON.stringify(bar.notes),
+  JSON.stringify(bar.symbols ?? [])
       );
     }
 
