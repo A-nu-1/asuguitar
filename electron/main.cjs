@@ -118,42 +118,36 @@ function createWindow(port) {
     },
   });
 
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    try {
+      const parsed = new URL(url);
 
-window.webContents.setWindowOpenHandler(({ url }) => {
-  try {
-    const parsed = new URL(url);
+      const allowedHosts = [
+        "youtube.com",
+        "www.youtube.com",
+        "m.youtube.com",
+        "youtu.be",
+      ];
 
-    const allowedHosts = [
-      "youtube.com",
-      "www.youtube.com",
-      "m.youtube.com",
-      "youtu.be",
-    ];
+      const allowedProtocol =
+        parsed.protocol === "https:" || parsed.protocol === "http:";
 
-    const allowedProtocol =
-      parsed.protocol === "https:" ||
-      parsed.protocol === "http:";
+      if (allowedHosts.includes(parsed.hostname) && allowedProtocol) {
+        // Always open YouTube securely in the default browser.
+        parsed.protocol = "https:";
 
-    if (
-      allowedHosts.includes(parsed.hostname) &&
-      allowedProtocol
-    ) {
-      // Always open YouTube securely in the default browser.
-      parsed.protocol = "https:";
-
-      void shell.openExternal(parsed.toString()).catch((error) => {
-        console.error("Could not open YouTube:", error);
-      });
-    } else {
-      console.warn("Blocked external URL:", url);
+        void shell.openExternal(parsed.toString()).catch((error) => {
+          console.error("Could not open YouTube:", error);
+        });
+      } else {
+        console.warn("Blocked external URL:", url);
+      }
+    } catch (error) {
+      console.error("Invalid external URL:", error);
     }
-  } catch (error) {
-    console.error("Invalid external URL:", error);
-  }
 
-  return { action: "deny" };
-});
-
+    return { action: "deny" };
+  });
 
   window.loadURL(`http://localhost:${port}`);
 }
@@ -253,26 +247,27 @@ app.whenReady().then(async () => {
     ipcMain.handle("songs:update", (_event, payload) => {
       return updateSong(payload);
     });
-    
-// -------------------------------------------------------
-// Load YouTube bar synchronization timings
-// -------------------------------------------------------
-ipcMain.handle("songs:sync:get", (_event, payload) => {
-  const { songId, videoId } = payload ?? {};
 
-  if (
-    typeof songId !== "string" ||
-    !songId.trim() ||
-    typeof videoId !== "string" ||
-    !/^[a-zA-Z0-9_-]{11}$/.test(videoId)
-  ) {
-    throw new Error("Invalid synchronization request.");
-  }
+    // -------------------------------------------------------
+    // Load YouTube bar synchronization timings
+    // -------------------------------------------------------
+    ipcMain.handle("songs:sync:get", (_event, payload) => {
+      const { songId, videoId } = payload ?? {};
 
-  const database = getDatabase();
+      if (
+        typeof songId !== "string" ||
+        !songId.trim() ||
+        typeof videoId !== "string" ||
+        !/^[a-zA-Z0-9_-]{11}$/.test(videoId)
+      ) {
+        throw new Error("Invalid synchronization request.");
+      }
 
-  return database
-    .prepare(`
+      const database = getDatabase();
+
+      return database
+        .prepare(
+          `
       SELECT
         bar_id AS barId,
         seconds
@@ -280,96 +275,343 @@ ipcMain.handle("songs:sync:get", (_event, payload) => {
       WHERE song_id = ?
         AND video_id = ?
       ORDER BY seconds ASC
-    `)
-    .all(songId, videoId);
-});
+    `,
+        )
+        .all(songId, videoId);
+    });
 
-// -------------------------------------------------------
-// Save YouTube bar synchronization timings
-// -------------------------------------------------------
-ipcMain.handle("songs:sync:save", (_event, payload) => {
-  const { songId, videoId, timings } = payload ?? {};
+    // -------------------------------------------------------
+    // Save YouTube bar synchronization timings
+    // -------------------------------------------------------
+    ipcMain.handle("songs:sync:save", (_event, payload) => {
+      const { songId, videoId, timings } = payload ?? {};
 
-  if (
-    typeof songId !== "string" ||
-    !songId.trim() ||
-    typeof videoId !== "string" ||
-    !/^[a-zA-Z0-9_-]{11}$/.test(videoId) ||
-    !Array.isArray(timings)
-  ) {
-    throw new Error("Invalid synchronization data.");
-  }
+      if (
+        typeof songId !== "string" ||
+        !songId.trim() ||
+        typeof videoId !== "string" ||
+        !/^[a-zA-Z0-9_-]{11}$/.test(videoId) ||
+        !Array.isArray(timings)
+      ) {
+        throw new Error("Invalid synchronization data.");
+      }
 
-  const barIds = new Set();
+      const barIds = new Set();
 
-  for (const timing of timings) {
-    if (
-      !timing ||
-      typeof timing.barId !== "string" ||
-      !timing.barId.trim() ||
-      typeof timing.seconds !== "number" ||
-      !Number.isFinite(timing.seconds) ||
-      timing.seconds < 0 ||
-      barIds.has(timing.barId)
-    ) {
-      throw new Error("Invalid or duplicate bar timing.");
-    }
+      for (const timing of timings) {
+        if (
+          !timing ||
+          typeof timing.barId !== "string" ||
+          !timing.barId.trim() ||
+          typeof timing.seconds !== "number" ||
+          !Number.isFinite(timing.seconds) ||
+          timing.seconds < 0 ||
+          barIds.has(timing.barId)
+        ) {
+          throw new Error("Invalid or duplicate bar timing.");
+        }
 
-    barIds.add(timing.barId);
-  }
+        barIds.add(timing.barId);
+      }
 
-  const database = getDatabase();
+      const database = getDatabase();
 
-  const deleteStatement = database.prepare(`
-    DELETE FROM song_video_timings
-    WHERE song_id = ? AND video_id = ?
-  `);
+      const deleteStatement = database.prepare(`
+     DELETE FROM song_video_timings
+     WHERE song_id = ? AND video_id = ?
+      `);
 
-  const insertStatement = database.prepare(`
-    INSERT INTO song_video_timings (
+      const insertStatement = database.prepare(`
+     INSERT INTO song_video_timings (
       song_id,
       video_id,
       bar_id,
       seconds
-    )
-    SELECT ?, ?, id, ?
-    FROM song_bars
-    WHERE id = ? AND song_id = ?
-  `);
+      )
+     SELECT ?, ?, id, ?
+     FROM song_bars
+     WHERE id = ? AND song_id = ?
+     `);
 
-  database.exec("BEGIN TRANSACTION");
+      database.exec("BEGIN TRANSACTION");
 
-  try {
-    deleteStatement.run(songId, videoId);
+      try {
+        deleteStatement.run(songId, videoId);
 
-    for (const timing of timings) {
-      const result = insertStatement.run(
-        songId,
-        videoId,
-        timing.seconds,
-        timing.barId,
-        songId,
-      );
+        for (const timing of timings) {
+          const result = insertStatement.run(
+            songId,
+            videoId,
+            timing.seconds,
+            timing.barId,
+            songId,
+          );
 
-      if (result.changes !== 1) {
-        throw new Error(
-          `Bar ${timing.barId} does not belong to this song.`,
-        );
+          if (result.changes !== 1) {
+            throw new Error(
+              `Bar ${timing.barId} does not belong to this song.`,
+            );
+          }
+        }
+
+        database.exec("COMMIT");
+
+        return {
+          success: true,
+          savedCount: timings.length,
+        };
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
       }
-    }
+    });
 
-    database.exec("COMMIT");
+    ipcMain.handle("songs:chord-sync:get", (_event, payload) => {
+      const { songId, videoId } = payload ?? {};
 
-    return {
-      success: true,
-      savedCount: timings.length,
-    };
-  } catch (error) {
-    database.exec("ROLLBACK");
-    throw error;
-  }
-});
+      if (
+        typeof songId !== "string" ||
+        !songId.trim() ||
+        typeof videoId !== "string" ||
+        !/^[a-zA-Z0-9_-]{11}$/.test(videoId)
+      ) {
+        throw new Error("Invalid chord synchronization request.");
+      }
 
+      const database = getDatabase();
+
+      return database
+        .prepare(
+          `
+    SELECT
+      line_id AS barId,
+      seconds
+    FROM song_chord_timings
+    WHERE song_id = ?
+      AND video_id = ?
+    ORDER BY seconds ASC
+  `,
+        )
+        .all(songId, videoId);
+    });
+
+    ipcMain.handle("songs:chord-sync:save", (_event, payload) => {
+      const { songId, videoId, timings } = payload ?? {};
+
+      if (
+        typeof songId !== "string" ||
+        !songId.trim() ||
+        typeof videoId !== "string" ||
+        !/^[a-zA-Z0-9_-]{11}$/.test(videoId) ||
+        !Array.isArray(timings)
+      ) {
+        throw new Error("Invalid chord synchronization data.");
+      }
+
+      const database = getDatabase();
+
+      // Verify the song and its actual chord-line IDs.
+      const song = database
+        .prepare(
+          `
+    SELECT chord_lines
+    FROM songs
+    WHERE id = ? AND song_type = 'chords'
+  `,
+        )
+        .get(songId);
+
+      if (!song) {
+        throw new Error("Chord song not found.");
+      }
+
+      const lines = JSON.parse(song.chord_lines || "[]");
+
+      if (!Array.isArray(lines)) {
+        throw new Error("Invalid chord-line data.");
+      }
+
+      const validIds = new Set(lines.map((line) => line.id));
+      const usedIds = new Set();
+
+      for (const timing of timings) {
+        if (
+          !timing ||
+          typeof timing.barId !== "string" ||
+          !validIds.has(timing.barId) ||
+          usedIds.has(timing.barId) ||
+          typeof timing.seconds !== "number" ||
+          !Number.isFinite(timing.seconds) ||
+          timing.seconds < 0
+        ) {
+          throw new Error("Invalid or duplicate chord timing.");
+        }
+
+        usedIds.add(timing.barId);
+      }
+
+      database.exec("BEGIN TRANSACTION");
+
+      try {
+        database
+          .prepare(
+            `
+      DELETE FROM song_chord_timings
+      WHERE song_id = ? AND video_id = ?
+    `,
+          )
+          .run(songId, videoId);
+
+        const insert = database.prepare(`
+      INSERT INTO song_chord_timings (
+        song_id,
+        video_id,
+        line_id,
+        seconds
+      )
+      VALUES (?, ?, ?, ?)
+    `);
+
+        for (const timing of timings) {
+          insert.run(songId, videoId, timing.barId, timing.seconds);
+        }
+
+        database.exec("COMMIT");
+
+        return {
+          success: true,
+          savedCount: timings.length,
+        };
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
+      }
+    });
+
+    ipcMain.handle("songs:pdf-sync:get", (_event, payload) => {
+      const { songId, videoId } = payload ?? {};
+
+      if (
+        typeof songId !== "string" ||
+        !songId.trim() ||
+        typeof videoId !== "string" ||
+        !/^[a-zA-Z0-9_-]{11}$/.test(videoId)
+      ) {
+        throw new Error("Invalid PDF synchronization request.");
+      }
+
+      const database = getDatabase();
+
+      return database
+        .prepare(
+          `
+      SELECT
+        id,
+        page_number AS page,
+        page_position AS position,
+        seconds
+      FROM song_pdf_timings
+      WHERE song_id = ?
+        AND video_id = ?
+      ORDER BY seconds ASC, id ASC
+    `,
+        )
+        .all(songId, videoId);
+    });
+
+    ipcMain.handle("songs:pdf-sync:save", (_event, payload) => {
+      const { songId, videoId, timings } = payload ?? {};
+
+      if (
+        typeof songId !== "string" ||
+        !songId.trim() ||
+        typeof videoId !== "string" ||
+        !/^[a-zA-Z0-9_-]{11}$/.test(videoId) ||
+        !Array.isArray(timings)
+      ) {
+        throw new Error("Invalid PDF synchronization data.");
+      }
+
+      const database = getDatabase();
+
+      // Only PDF-only songs may have PDF synchronization markers.
+      const song = database
+        .prepare(
+          `
+      SELECT id
+      FROM songs
+      WHERE id = ? AND song_type = 'tab'
+    `,
+        )
+        .get(songId);
+
+      if (!song) {
+        throw new Error("PDF-only song not found.");
+      }
+
+      // Validate everything before modifying the database.
+      for (const timing of timings) {
+        if (
+          !timing ||
+          !Number.isInteger(timing.page) ||
+          timing.page < 1 ||
+          typeof timing.position !== "number" ||
+          !Number.isFinite(timing.position) ||
+          timing.position < 0 ||
+          timing.position > 1 ||
+          typeof timing.seconds !== "number" ||
+          !Number.isFinite(timing.seconds) ||
+          timing.seconds < 0
+        ) {
+          throw new Error("Invalid PDF synchronization marker.");
+        }
+      }
+
+      database.exec("BEGIN TRANSACTION");
+
+      try {
+        // Replace markers for this song and YouTube video only.
+        database
+          .prepare(
+            `
+        DELETE FROM song_pdf_timings
+        WHERE song_id = ? AND video_id = ?
+      `,
+          )
+          .run(songId, videoId);
+
+        const insert = database.prepare(`
+      INSERT INTO song_pdf_timings (
+        song_id,
+        video_id,
+        page_number,
+        page_position,
+        seconds
+      )
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+        for (const timing of timings) {
+          insert.run(
+            songId,
+            videoId,
+            timing.page,
+            timing.position,
+            timing.seconds,
+          );
+        }
+
+        database.exec("COMMIT");
+
+        return {
+          success: true,
+          savedCount: timings.length,
+        };
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
+      }
+    });
 
     const port = await startServer();
     createWindow(port);

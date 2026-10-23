@@ -52,7 +52,6 @@ export type ChordLine = {
   placements?: ChordPlacement[];
 };
 
-
 export type Song = {
   title: string;
   mode: "melody" | "chords";
@@ -77,7 +76,6 @@ export type LibrarySong = {
   capo: number | null;
 };
 
-
 export type SongSaveBar = {
   id: string;
   number: number;
@@ -95,16 +93,12 @@ export type SongSaveBar = {
   }>;
 };
 
-
-
 export type GuitarAPI = {
   getSongs: () => Promise<LibrarySong[]>;
 
   getSong: (songId: string) => Promise<unknown>;
 
-  getSongPdf: (
-    songId: string
-  ) => Promise<Uint8Array | null>;
+  getSongPdf: (songId: string) => Promise<Uint8Array | null>;
 
   // ADD SONG
   saveSong: (payload: {
@@ -163,7 +157,7 @@ export type GuitarAPI = {
     updated: boolean;
   }>;
 
-    // YOUTUBE SYNCHRONIZATION
+  // YOUTUBE SYNCHRONIZATION
 
   getSongSync: (
     songId: string,
@@ -186,5 +180,53 @@ export type GuitarAPI = {
     success: boolean;
     savedCount: number;
   }>;
-};
 
+  // CHORD YOUTUBE SYNCHRONIZATION
+  getChordSync: (
+    songId: string,
+    videoId: string,
+  ) => Promise<
+    Array<{
+      barId: string;
+      seconds: number;
+    }>
+  >;
+
+  saveChordSync: (
+    songId: string,
+    videoId: string,
+    timings: Array<{
+      barId: string;
+      seconds: number;
+    }>,
+  ) => Promise<{
+    success: boolean;
+    savedCount: number;
+  }>;
+
+  // PDF–YOUTUBE SYNCHRONIZATION
+  getPdfSync: (
+    songId: string,
+    videoId: string,
+  ) => Promise<
+    Array<{
+      id: number;
+      page: number;
+      position: number;
+      seconds: number;
+    }>
+  >;
+
+  savePdfSync: (
+    songId: string,
+    videoId: string,
+    timings: Array<{
+      page: number;
+      position: number;
+      seconds: number;
+    }>,
+  ) => Promise<{
+    success: boolean;
+    savedCount: number;
+  }>;
+};

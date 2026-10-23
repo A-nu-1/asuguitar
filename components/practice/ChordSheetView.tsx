@@ -5,6 +5,8 @@ import type { ChordLine, ChordPlacement } from "@/types/guitar";
 
 type Props = {
   lines: ChordLine[];
+  activeLineId?: string | null;
+  onLineSelect?: (lineId: string) => void;
 };
 
 const CHAR_WIDTH = 9;
@@ -35,8 +37,7 @@ function ChordRow({
   const positioned = placements
     .map((placement: ChordPlacement, index) => {
       const left =
-        placement.charIndex !== undefined &&
-        placement.charIndex !== null
+        placement.charIndex !== undefined && placement.charIndex !== null
           ? placement.charIndex * CHAR_WIDTH
           : (placement.position / 100) *
             Math.max(lyrics.length * CHAR_WIDTH, 240);
@@ -48,16 +49,9 @@ function ChordRow({
   let nextLeft = LEFT_PADDING;
 
   const displayed = positioned.map((item) => {
-    const left = Math.max(
-      LEFT_PADDING + item.left,
-      nextLeft
-    );
+    const left = Math.max(LEFT_PADDING + item.left, nextLeft);
 
-    nextLeft =
-      left +
-      item.placement.chord.length * CHAR_WIDTH +
-      16 +
-      CHORD_GAP;
+    nextLeft = left + item.placement.chord.length * CHAR_WIDTH + 16 + CHORD_GAP;
 
     return { ...item, left };
   });
@@ -65,18 +59,14 @@ function ChordRow({
   const width = Math.max(
     lyrics.length * CHAR_WIDTH + 60,
     ...displayed.map(
-      ({ placement, left }) =>
-        left + placement.chord.length * CHAR_WIDTH + 40
+      ({ placement, left }) => left + placement.chord.length * CHAR_WIDTH + 40,
     ),
-    300
+    300,
   );
 
   return (
     <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white p-3">
-      <div
-        className="relative h-20 font-mono"
-        style={{ width }}
-      >
+      <div className="relative h-20 font-mono" style={{ width }}>
         {displayed.map(({ placement, left }) => {
           const colorIndex = chordColors[placement.id] ?? 0;
           const colorStyle = PASTEL_CHORD_COLORS[colorIndex];
@@ -106,14 +96,18 @@ function ChordRow({
   );
 }
 
-export default function ChordSheetView({ lines }: Props) {
+export default function ChordSheetView({
+  lines,
+  activeLineId,
+  onLineSelect,
+}: Props) {
   const chordColors = useMemo(() => {
     const map: Record<string, number> = {};
 
     for (const line of lines) {
       for (const placement of line.placements ?? []) {
         map[placement.id] = Math.floor(
-          Math.random() * PASTEL_CHORD_COLORS.length
+          Math.random() * PASTEL_CHORD_COLORS.length,
         );
       }
     }
@@ -122,24 +116,30 @@ export default function ChordSheetView({ lines }: Props) {
   }, [lines]);
 
   if (lines.length === 0) {
-    return (
-      <p className="text-sm text-slate-500">
-        No chord lines available.
-      </p>
-    );
+    return <p className="text-sm text-slate-500">No chord lines available.</p>;
   }
 
   return (
     <div className="space-y-4">
       {lines.map((line, index) => {
-        const previousSection =
-          index > 0 ? lines[index - 1].section : null;
+        const previousSection = index > 0 ? lines[index - 1].section : null;
 
-        const showSection =
-          line.section && line.section !== previousSection;
+        const showSection = line.section && line.section !== previousSection;
 
         return (
-          <div key={line.id}>
+          <div
+            key={line.id}
+            data-chord-line-id={line.id}
+            onClick={onLineSelect ? () => onLineSelect(line.id) : undefined}
+            className={`      rounded-xl p-2      transition-all duration-200
+                    ${onLineSelect ? "cursor-pointer" : ""}
+      ${
+        activeLineId === line.id
+          ? "bg-violet-100 ring-2 ring-fuchsia-500 shadow-lg shadow-fuchsia-200"
+          : "bg-transparent"
+      }
+    `}
+          >
             {showSection && (
               <h3 className="mb-2 mt-4 text-sm font-semibold text-slate-700">
                 {line.section}

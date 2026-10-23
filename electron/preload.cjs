@@ -25,4 +25,32 @@ contextBridge.exposeInMainWorld("guitarAPI", {
       videoId,
       timings,
     }),
+
+  // CHORD YOUTUBE SYNCHRONIZATION
+  getChordSync: (songId, videoId) =>
+    ipcRenderer.invoke("songs:chord-sync:get", {
+      songId,
+      videoId,
+    }),
+
+  saveChordSync: (songId, videoId, timings) =>
+    ipcRenderer.invoke("songs:chord-sync:save", {
+      songId,
+      videoId,
+      timings,
+    }),
+
+    // PDF–YOUTUBE SYNCHRONIZATION
+getPdfSync: (songId, videoId) =>
+  ipcRenderer.invoke("songs:pdf-sync:get", {
+    songId,
+    videoId,
+  }),
+
+savePdfSync: (songId, videoId, timings) =>
+  ipcRenderer.invoke("songs:pdf-sync:save", {
+    songId,
+    videoId,
+    timings,
+  }),
 });

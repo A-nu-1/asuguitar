@@ -83,6 +83,54 @@ CREATE TABLE IF NOT EXISTS song_video_timings (
 CREATE INDEX IF NOT EXISTS idx_song_video_timings
   ON song_video_timings(song_id, video_id, seconds);
 
+  
+-- YouTube synchronization for chord lines
+CREATE TABLE IF NOT EXISTS song_chord_timings (
+  song_id TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  line_id TEXT NOT NULL,
+  seconds REAL NOT NULL CHECK (seconds >= 0),
+
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (song_id, video_id, line_id),
+
+  FOREIGN KEY (song_id)
+    REFERENCES songs(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_song_chord_timings
+  ON song_chord_timings(song_id, video_id, seconds);
+
+  
+-- YouTube synchronization for PDF positions
+CREATE TABLE IF NOT EXISTS song_pdf_timings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  song_id TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+
+  page_number INTEGER NOT NULL
+    CHECK (page_number >= 1),
+
+  page_position REAL NOT NULL
+    CHECK (page_position >= 0 AND page_position <= 1),
+
+  seconds REAL NOT NULL
+    CHECK (seconds >= 0),
+
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  FOREIGN KEY (song_id)
+    REFERENCES songs(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_song_pdf_timings
+  ON song_pdf_timings(song_id, video_id, seconds);
+
+
   `);
 
   console.log("SQLite database ready:", databasePath);
