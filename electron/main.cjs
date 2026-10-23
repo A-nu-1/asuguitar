@@ -253,6 +253,123 @@ app.whenReady().then(async () => {
     ipcMain.handle("songs:update", (_event, payload) => {
       return updateSong(payload);
     });
+    
+// -------------------------------------------------------
+// Load YouTube bar synchronization timings
+// -------------------------------------------------------
+ipcMain.handle("songs:sync:get", (_event, payload) => {
+  const { songId, videoId } = payload ?? {};
+
+  if (
+    typeof songId !== "string" ||
+    !songId.trim() ||
+    typeof videoId !== "string" ||
+    !/^[a-zA-Z0-9_-]{11}$/.test(videoId)
+  ) {
+    throw new Error("Invalid synchronization request.");
+  }
+
+  const database = getDatabase();
+
+  return database
+    .prepare(`
+      SELECT
+        bar_id AS barId,
+        seconds
+      FROM song_video_timings
+      WHERE song_id = ?
+        AND video_id = ?
+      ORDER BY seconds ASC
+    `)
+    .all(songId, videoId);
+});
+
+// -------------------------------------------------------
+// Save YouTube bar synchronization timings
+// -------------------------------------------------------
+ipcMain.handle("songs:sync:save", (_event, payload) => {
+  const { songId, videoId, timings } = payload ?? {};
+
+  if (
+    typeof songId !== "string" ||
+    !songId.trim() ||
+    typeof videoId !== "string" ||
+    !/^[a-zA-Z0-9_-]{11}$/.test(videoId) ||
+    !Array.isArray(timings)
+  ) {
+    throw new Error("Invalid synchronization data.");
+  }
+
+  const barIds = new Set();
+
+  for (const timing of timings) {
+    if (
+      !timing ||
+      typeof timing.barId !== "string" ||
+      !timing.barId.trim() ||
+      typeof timing.seconds !== "number" ||
+      !Number.isFinite(timing.seconds) ||
+      timing.seconds < 0 ||
+      barIds.has(timing.barId)
+    ) {
+      throw new Error("Invalid or duplicate bar timing.");
+    }
+
+    barIds.add(timing.barId);
+  }
+
+  const database = getDatabase();
+
+  const deleteStatement = database.prepare(`
+    DELETE FROM song_video_timings
+    WHERE song_id = ? AND video_id = ?
+  `);
+
+  const insertStatement = database.prepare(`
+    INSERT INTO song_video_timings (
+      song_id,
+      video_id,
+      bar_id,
+      seconds
+    )
+    SELECT ?, ?, id, ?
+    FROM song_bars
+    WHERE id = ? AND song_id = ?
+  `);
+
+  database.exec("BEGIN TRANSACTION");
+
+  try {
+    deleteStatement.run(songId, videoId);
+
+    for (const timing of timings) {
+      const result = insertStatement.run(
+        songId,
+        videoId,
+        timing.seconds,
+        timing.barId,
+        songId,
+      );
+
+      if (result.changes !== 1) {
+        throw new Error(
+          `Bar ${timing.barId} does not belong to this song.`,
+        );
+      }
+    }
+
+    database.exec("COMMIT");
+
+    return {
+      success: true,
+      savedCount: timings.length,
+    };
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+});
+
 
     const port = await startServer();
     createWindow(port);

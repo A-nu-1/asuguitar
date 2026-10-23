@@ -29,6 +29,10 @@ type LocalSong = {
     lyrics: string | null;
     notes: Bar["notes"];
   }>;
+  demo_timings?: {
+  barId: string;
+  seconds: number;
+}[];
 };
 
 export default function SongPage() {
@@ -155,6 +159,7 @@ export default function SongPage() {
             timeSignature={song.time_signature}
             capo={song.capo}
             strummingPattern={song.strumming_pattern}
+            demoTimings={song.demo_timings}
           />
         </div>
       )}

@@ -59,6 +59,30 @@ function initializeDatabase() {
 
     CREATE INDEX IF NOT EXISTS idx_song_bars_song
       ON song_bars(song_id, bar_number);
+
+      
+CREATE TABLE IF NOT EXISTS song_video_timings (
+  song_id TEXT NOT NULL,
+  video_id TEXT NOT NULL,
+  bar_id TEXT NOT NULL,
+  seconds REAL NOT NULL CHECK (seconds >= 0),
+
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (song_id, video_id, bar_id),
+
+  FOREIGN KEY (song_id)
+    REFERENCES songs(id)
+    ON DELETE CASCADE,
+
+  FOREIGN KEY (bar_id)
+    REFERENCES song_bars(id)
+    ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_song_video_timings
+  ON song_video_timings(song_id, video_id, seconds);
+
   `);
 
   console.log("SQLite database ready:", databasePath);
@@ -80,7 +104,6 @@ function closeDatabase() {
     db = null;
   }
 }
-
 
 module.exports = {
   initializeDatabase,

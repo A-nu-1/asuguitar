@@ -4,6 +4,26 @@ import type { Bar, ChordLine, Note } from "@/types/guitar";
 const TOTAL_BARS = 50;
 const TOTAL_CHORD_LINES = 50;
 
+export type DemoSyncTiming = {
+  barId: string;
+  seconds: number;
+};
+
+// Melody: three sample bars.
+export const sampleMelodyTimings: DemoSyncTiming[] = [
+  { barId: "bar-1", seconds: 0 },
+  { barId: "bar-2", seconds: 5 },
+  { barId: "bar-3", seconds: 10 },
+];
+
+// Chords: three sample chord lines.
+// We'll use these when chord synchronization is implemented.
+export const sampleChordTimings: DemoSyncTiming[] = [
+  { barId: "line-1", seconds: 0 },
+  { barId: "line-2", seconds: 5 },
+  { barId: "line-3", seconds: 10 },
+];
+
 // =====================================================
 // SAMPLE MELODY — 50 BARS
 // =====================================================
@@ -59,10 +79,58 @@ export const sampleMelodyBars: Bar[] = Array.from(
       melodySections.length - 1
     );
 
-    const pattern =
-      melodyPatterns[index % melodyPatterns.length];
+    
+const pattern =
+  melodyPatterns[index % melodyPatterns.length];
 
-    const notes: Note[] = pattern.map((note, noteIndex) => ({
+// Deliberately crowded test notes for Bars 10, 11 and 12.
+const crowdedPatterns = [
+  [
+    { string: 1, fret: "0", position: 25 },
+    { string: 2, fret: "5", position: 25 },
+    { string: 3, fret: "5", position: 25 },
+    { string: 4, fret: "0", position: 25 },
+    { string: 5, fret: "0", position: 25 },
+    { string: 2, fret: "5", position: 65 },
+    { string: 3, fret: "5", position: 65 },
+    { string: 5, fret: "0", position: 65 },
+  ],
+  [
+    { string: 1, fret: "0", position: 20 },
+    { string: 2, fret: "5", position: 20 },
+    { string: 3, fret: "5", position: 20 },
+    { string: 5, fret: "2", position: 20 },
+    { string: 1, fret: "0", position: 45 },
+    { string: 2, fret: "5", position: 45 },
+    { string: 3, fret: "5", position: 45 },
+    { string: 5, fret: "3", position: 45 },
+    { string: 4, fret: "3", position: 75 },
+  ],
+  [
+    { string: 1, fret: "7", position: 35 },
+    { string: 2, fret: "8", position: 35 },
+    { string: 3, fret: "7", position: 35 },
+    { string: 4, fret: "5", position: 35 },
+    { string: 2, fret: "5", position: 75 },
+    { string: 3, fret: "5", position: 75 },
+  ],
+];
+
+const crowdedPattern =
+  barNumber >= 10 && barNumber <= 12
+    ? crowdedPatterns[barNumber - 10]
+    : null;
+
+const notes: Note[] = crowdedPattern
+  ? crowdedPattern.map((note, noteIndex) => ({
+      id: `note-${barNumber}-${noteIndex + 1}`,
+      string: note.string,
+      fret: note.fret,
+      beat: noteIndex + 1,
+      duration: 1,
+      position: note.position,
+    }))
+  : pattern.map((note, noteIndex) => ({
       id: `note-${barNumber}-${noteIndex + 1}`,
       string: note.string,
       fret: note.fret,
@@ -70,6 +138,7 @@ export const sampleMelodyBars: Bar[] = Array.from(
       duration: 1,
       position: 12 + noteIndex * 24,
     }));
+
 
     return {
       id: `bar-${barNumber}`,
@@ -169,6 +238,7 @@ type DemoSong = {
     lyrics: string;
     notes: Note[];
   }[];
+  demo_timings?: DemoSyncTiming[];
 };
 
 const melodyTitles = [
@@ -248,6 +318,7 @@ const melodyDemos: DemoSong[] = melodyTitles.map(
       pdfUrl: "/demo/melody.pdf",
       chord_lines: [],
       bars: melodyBars,
+      demo_timings: sampleMelodyTimings,
     };
   }
 );
@@ -276,6 +347,7 @@ const chordDemos: DemoSong[] = chordTitles.map(
       pdfUrl: "/demo/chords.pdf",
       chord_lines: sampleChordLines,
       bars: [],
+      demo_timings: sampleChordTimings,
     };
   }
 );

@@ -2,6 +2,8 @@ import type { Bar, Note } from "@/types/guitar";
 
 type Props = {
   bars: Bar[];
+  activeBarId?: string | null;
+  onBarSelect?: (barId: string) => void;
 };
 
 const STRING_COLORS = [
@@ -36,15 +38,36 @@ function getNotePosition(note: Note, notes: Note[]): number {
   return notes.length > 0 ? 10 + (index / notes.length) * 80 : 10;
 }
 
-function TabBar({ bar }: { bar: Bar }) {
+function TabBar({
+  bar,
+  isActive = false,
+  onSelect,
+}: {
+  bar: Bar;
+  isActive?: boolean;
+  onSelect?: () => void;
+}) {
   return (
-    <div className="min-w-0">
+    <div
+      data-bar-id={bar.id}
+      onClick={onSelect}
+      className={`
+        min-w-0 rounded-xl p-2
+        transition-all duration-200
+        ${onSelect ? "cursor-pointer" : ""}
+        ${
+          isActive
+            ? "bg-violet-100 ring-2 ring-fuchsia-500 shadow-lg shadow-fuchsia-200"
+            : "bg-transparent"
+        }
+      `}
+    >
       <div className="mb-2 text-xs font-semibold text-slate-500">
         Bar {bar.number}
       </div>
 
-      <div className="relative h-28 rounded-md border border-slate-200 bg-white px-2">
-        <div className="absolute inset-x-2 top-5 bottom-5 flex flex-col justify-between">
+      <div className="relative h-[160px] rounded-md border border-slate-200 bg-white px-2">
+        <div className="absolute inset-x-2 top-6 bottom-6 flex flex-col justify-between">
           {[1, 2, 3, 4, 5, 6].map((stringNumber) => (
             <div
               key={stringNumber}
@@ -88,7 +111,11 @@ function TabBar({ bar }: { bar: Bar }) {
   );
 }
 
-export default function MelodyTabView({ bars }: Props) {
+export default function MelodyTabView({
+  bars,
+  activeBarId,
+  onBarSelect,
+}: Props) {
   if (bars.length === 0) {
     return (
       <p className="rounded-lg border border-slate-200 bg-white p-5 text-sm text-slate-500">
@@ -107,7 +134,12 @@ export default function MelodyTabView({ bars }: Props) {
           className="grid grid-cols-4 gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3"
         >
           {row.map((bar) => (
-            <TabBar key={bar.id} bar={bar} />
+            <TabBar
+              key={bar.id}
+              bar={bar}
+              isActive={activeBarId === bar.id}
+              onSelect={onBarSelect ? () => onBarSelect(bar.id) : undefined}
+            />
           ))}
         </div>
       ))}

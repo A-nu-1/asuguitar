@@ -162,5 +162,29 @@ export type GuitarAPI = {
     pdf_filename: string | null;
     updated: boolean;
   }>;
+
+    // YOUTUBE SYNCHRONIZATION
+
+  getSongSync: (
+    songId: string,
+    videoId: string,
+  ) => Promise<
+    Array<{
+      barId: string;
+      seconds: number;
+    }>
+  >;
+
+  saveSongSync: (
+    songId: string,
+    videoId: string,
+    timings: Array<{
+      barId: string;
+      seconds: number;
+    }>,
+  ) => Promise<{
+    success: boolean;
+    savedCount: number;
+  }>;
 };
 

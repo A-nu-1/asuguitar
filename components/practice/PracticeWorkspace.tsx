@@ -6,6 +6,7 @@ import ChordSheetView from "@/components/practice/ChordSheetView";
 import PdfViewer from "@/components/practice/PdfViewer";
 import type { Bar, ChordLine } from "@/types/guitar";
 import Link from "next/link";
+import YouTubeSyncPlayer from "@/components/practice/YouTubeSyncPlayer";
 
 const SONG_ICONS = Array.from(
   { length: 24 },
@@ -26,6 +27,10 @@ type Props = {
   timeSignature?: string | null;
   capo?: number | null;
   strummingPattern?: string | null;
+  demoTimings?: {
+    barId: string;
+    seconds: number;
+  }[];
 };
 
 const DEFAULT_VIDEO_HEIGHT = 220;
@@ -75,6 +80,7 @@ export default function PracticeWorkspace({
   timeSignature,
   capo,
   strummingPattern,
+  demoTimings,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
@@ -88,6 +94,34 @@ export default function PracticeWorkspace({
 
   const [scrolling, setScrolling] = useState(false);
   const [speed, setSpeed] = useState(30);
+  // Currently selected guitar bar.
+  // Later, YouTube synchronization will control this.
+  const [activeBarId, setActiveBarId] = useState<string | null>(null);
+
+  const [syncPanelOpen, setSyncPanelOpen] = useState(false);
+  const [youtubeTime, setYoutubeTime] = useState(0);
+
+  type BarTiming = {
+    barId: string;
+    seconds: number;
+  };
+
+  const [barTimings, setBarTimings] = useState<BarTiming[]>([]);
+  const [syncLoading, setSyncLoading] = useState(false);
+  const [syncSaving, setSyncSaving] = useState(false);
+  const [syncDirty, setSyncDirty] = useState(false);
+  const [syncError, setSyncError] = useState("");
+  const [syncMessage, setSyncMessage] = useState("");
+  const [editingBarId, setEditingBarId] = useState<string | null>(null);
+
+  const [editingTime, setEditingTime] = useState("");
+  const [editingTimeError, setEditingTimeError] = useState("");
+  const [syncSetup, setSyncSetup] = useState(false);
+  const [syncEnabled, setSyncEnabled] = useState(false);
+
+  const [youtubeStatus, setYoutubeStatus] = useState<
+    "unstarted" | "playing" | "paused" | "buffering" | "ended" | "error"
+  >("unstarted");
 
   const speedRef = useRef(speed);
   const youtubeId = getYouTubeId(youtubeUrl || "");
@@ -115,6 +149,69 @@ export default function PracticeWorkspace({
     setSavedNotes(description ?? "");
     setEditingNotes(false);
   }, [songId, description]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    setBarTimings([]);
+    setSyncSetup(false);
+    setSyncEnabled(false);
+    setActiveBarId(null);
+    setYoutubeTime(0);
+    setSyncDirty(false);
+    setSyncError("");
+    setSyncMessage("");
+    setEditingBarId(null);
+    setEditingTime("");
+    setEditingTimeError("");
+
+    async function loadMappings() {
+      if (!youtubeId || !window.guitarAPI?.getSongSync) {
+        // Browser demo only. Never replace Electron's saved mappings.
+        const sampleMappings =
+          !window.guitarAPI && youtubeId ? (demoTimings ?? []) : [];
+
+        setBarTimings(sampleMappings);
+        setSyncLoading(false);
+        setEditingBarId(null);
+        setEditingTime("");
+        setEditingTimeError("");
+
+        if (sampleMappings.length > 0) {
+          setSyncMessage(`${sampleMappings.length} sample mappings loaded.`);
+        }
+
+        return;
+      }
+
+      setSyncLoading(true);
+
+      try {
+        const saved = await window.guitarAPI.getSongSync(songId, youtubeId);
+
+        if (cancelled) return;
+
+        setBarTimings(saved);
+        setSyncMessage(`${saved.length} mappings loaded.`);
+      } catch (error) {
+        if (!cancelled) {
+          setSyncError(
+            error instanceof Error
+              ? error.message
+              : "Could not load synchronization mappings.",
+          );
+        }
+      } finally {
+        if (!cancelled) setSyncLoading(false);
+      }
+    }
+
+    void loadMappings();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [songId, youtubeId, demoTimings]);
 
   // Restore preferred YouTube height.
   useEffect(() => {
@@ -211,6 +308,42 @@ export default function PracticeWorkspace({
     };
   }, []);
 
+  function canLeaveSong(): boolean {
+    if (syncSaving) {
+      window.alert(
+        "Your YouTube timings are still being saved.\n" +
+          "Please wait for the save result before leaving.",
+      );
+      return false;
+    }
+
+    if (syncDirty) {
+      return window.confirm(
+        "You have unsaved YouTube timing changes.\n\n" +
+          "OK = Leave and discard unsaved changes\n" +
+          "Cancel = Stay on this song",
+      );
+    }
+
+    return true;
+  }
+
+  // Warn when closing or reloading with pending changes.
+  useEffect(() => {
+    if (!syncDirty && !syncSaving) return;
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [syncDirty, syncSaving]);
+
   function resetScroll() {
     setScrolling(false);
 
@@ -220,9 +353,185 @@ export default function PracticeWorkspace({
     });
   }
 
+  function handleBarSelect(barId: string) {
+    setActiveBarId(barId);
+
+    if (!syncSetup || syncLoading || syncSaving || editingBarId !== null)
+      return;
+
+    setSyncDirty(true);
+    setSyncMessage("");
+
+    // Capture the current YouTube position.
+    const seconds = Math.round(youtubeTime * 10) / 10;
+
+    setBarTimings((current) => {
+      const withoutCurrent = current.filter((item) => item.barId !== barId);
+
+      return [...withoutCurrent, { barId, seconds }].sort(
+        (a, b) => a.seconds - b.seconds,
+      );
+    });
+  }
+  // Match the playing YouTube timestamp to a guitar bar.
+  useEffect(() => {
+    if (!syncEnabled || syncSetup || songType !== "melody") {
+      return;
+    }
+
+    const currentBar = [...barTimings]
+      .sort((a, b) => a.seconds - b.seconds)
+      .filter((item) => item.seconds <= youtubeTime)
+      .at(-1);
+
+    setActiveBarId(currentBar?.barId ?? null);
+  }, [youtubeTime, barTimings, syncEnabled, syncSetup, songType]);
+  // Keep the synchronized bar visible inside the music panel.
+  useEffect(() => {
+    if (!syncEnabled || syncSetup || !activeBarId) return;
+
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const target = Array.from(
+      container.querySelectorAll<HTMLElement>("[data-bar-id]"),
+    ).find((element) => element.dataset.barId === activeBarId);
+
+    if (!target) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+
+    const top = container.scrollTop + targetRect.top - containerRect.top - 24;
+
+    container.scrollTo({
+      top: Math.max(0, top),
+      behavior: "smooth",
+    });
+  }, [activeBarId, syncEnabled, syncSetup]);
+
+  function parseTimingInput(value: string): number | null {
+    const input = value.trim();
+
+    // Accepts formats such as 0:18, 1:25, 1:25.5
+    const match = input.match(/^(\d+):([0-5]\d)(?:\.(\d{1,3}))?$/);
+
+    if (!match) return null;
+
+    const minutes = Number(match[1]);
+    const seconds = Number(match[2]);
+    const fraction = match[3] ? Number(`0.${match[3]}`) : 0;
+
+    const total = minutes * 60 + seconds + fraction;
+
+    return Number.isFinite(total) ? total : null;
+  }
+
+  function formatTimingInput(seconds: number): string {
+    const minutes = Math.floor(seconds / 60);
+    const remainder = (seconds % 60).toFixed(3);
+
+    return `${minutes}:${remainder.padStart(6, "0")}`;
+  }
+
+  function editBarTiming(barId: string) {
+    if (syncSaving || syncLoading || !syncSetup) return;
+
+    const existing = barTimings.find((item) => item.barId === barId);
+
+    if (!existing) return;
+
+    setEditingBarId(barId);
+    setEditingTime(formatTimingInput(existing.seconds));
+    setEditingTimeError("");
+  }
+
+  function applyEditedTiming(barId: string) {
+    if (syncSaving || syncLoading) return;
+
+    const seconds = parseTimingInput(editingTime);
+
+    if (seconds === null) {
+      setEditingTimeError("Use MM:SS or MM:SS.sss (example: 0:19.500).");
+      return;
+    }
+
+    const existing = barTimings.find((item) => item.barId === barId);
+
+    if (!existing) return;
+
+    if (existing.seconds !== seconds) {
+      setBarTimings((current) =>
+        current
+          .map((item) => (item.barId === barId ? { ...item, seconds } : item))
+          .sort((a, b) => a.seconds - b.seconds),
+      );
+
+      setSyncDirty(true);
+      setSyncMessage("");
+      setSyncError("");
+    }
+
+    setEditingBarId(null);
+    setEditingTime("");
+    setEditingTimeError("");
+  }
+
+  async function saveTimings() {
+    if (
+      syncSaving ||
+      syncLoading ||
+      !syncDirty ||
+      !youtubeId ||
+      !window.guitarAPI?.saveSongSync
+    ) {
+      return;
+    }
+
+    // Capture exactly what is being saved.
+    const snapshot = barTimings.map((item) => ({ ...item }));
+
+    setSyncSaving(true);
+    setSyncError("");
+    setSyncMessage("");
+
+    try {
+      const result = await window.guitarAPI.saveSongSync(
+        songId,
+        youtubeId,
+        snapshot,
+      );
+
+      if (!result.success) {
+        throw new Error("SQLite did not confirm the save.");
+      }
+
+      setSyncDirty(false);
+      setSyncMessage(`✅ ${result.savedCount} bar timings saved successfully!`);
+    } catch (error) {
+      // Do not clear or replace the user's mappings.
+      setSyncDirty(true);
+
+      setSyncError(
+        error instanceof Error
+          ? `Save failed: ${error.message}`
+          : "Save failed. Your unsaved mappings are still available.",
+      );
+    } finally {
+      // Always restore the normal controls on completion or error.
+      setSyncSaving(false);
+    }
+  }
+
   function renderMusic() {
     if (songType === "melody") {
-      return <MelodyTabView bars={bars} />;
+      return (
+        <MelodyTabView
+          bars={bars}
+          activeBarId={activeBarId}
+          onBarSelect={handleBarSelect}
+        />
+      );
     }
 
     if (songType === "chords") {
@@ -262,7 +571,14 @@ export default function PracticeWorkspace({
       setSavingNotes(false);
     }
   }
+  function formatVideoTime(seconds: number) {
+    const total = Math.floor(seconds);
 
+    const minutes = Math.floor(total / 60);
+    const remainingSeconds = total % 60;
+
+    return `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+  }
   return (
     <div className="flex h-full min-h-0 flex-col bg-slate-100">
       {/* Magical practice navigation */}
@@ -468,7 +784,14 @@ export default function PracticeWorkspace({
                   <Link
                     role="menuitem"
                     href={`/edit?id=${encodeURIComponent(songId)}`}
-                    onClick={() => setCrystalMenuOpen(false)}
+                    onClick={(event) => {
+                      if (!canLeaveSong()) {
+                        event.preventDefault();
+                        return;
+                      }
+
+                      setCrystalMenuOpen(false);
+                    }}
                     className="
                 block rounded-xl px-4 py-3
                 text-sm font-semibold text-violet-100
@@ -557,26 +880,313 @@ export default function PracticeWorkspace({
             href="/"
             title="Return to magical homepage"
             aria-label="Return home"
-            className="
-        flex h-14 w-14 items-center justify-center
-        rounded-2xl border border-pink-300/70
-        bg-gradient-to-br
-        from-pink-400/25 via-violet-500/30
-        to-cyan-400/20
-        text-3xl
-        shadow-[0_0_18px_#e4a4ff88]
-        transition-all duration-300
-        hover:-translate-y-1 hover:scale-110
-        hover:shadow-[0_0_25px_#f0aeff]
-      "
+            className="flex h-14 w-14 items-center justify-center rounded-2xl border border-pink-300/70 bg-gradient-to-br from-pink-400/25 via-violet-500/30        to-cyan-400/20        text-3xl        shadow-[0_0_18px_#e4a4ff88]        transition-all duration-300        hover:-translate-y-1 hover:scale-110        hover:shadow-[0_0_25px_#f0aeff]      "
+            onClick={(event) => {
+              if (!canLeaveSong()) {
+                event.preventDefault();
+              }
+            }}
           >
             🏰
           </Link>
         </div>
+        {youtubeId && songType === "melody" && (
+          <button
+            type="button"
+            onClick={() => setSyncPanelOpen((current) => !current)}
+            aria-label={
+              syncPanelOpen
+                ? "Collapse YouTube synchronization controls"
+                : "Expand YouTube synchronization controls"
+            }
+            aria-expanded={syncPanelOpen}
+            title={
+              syncSaving
+                ? "Saving YouTube timings..."
+                : syncDirty
+                  ? "YouTube synchronization - unsaved changes"
+                  : "YouTube synchronization"
+            }
+            className="       absolute -bottom-6 left-1/2 z-40       flex h-6 w-14 -translate-x-1/2
+                               items-center justify-center
+                                   rounded-b-xl border border-t-0 border-fuchsia-400/50
+                                 bg-[#302052] text-violet-100
+                                shadow-lg transition-colors hover:bg-violet-700"
+          >
+            {syncSaving ? "⏳" : syncDirty ? "●" : syncPanelOpen ? "⌃" : "⌄"}
+          </button>
+        )}
       </div>
 
+      {syncPanelOpen && (
+        <>
+          {" "}
+          {youtubeId && (
+            <div className="flex pt-6 shrink-0 items-center justify-center gap-3 border-b border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800">
+              <span>🎬 YouTube:</span>
+
+              <span className="tabular-nums">
+                {formatVideoTime(youtubeTime)}
+              </span>
+
+              <span className="rounded-full bg-white px-3 py-1 capitalize">
+                {youtubeStatus}
+              </span>
+            </div>
+          )}
+          {youtubeId && songType === "melody" && (
+            <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-b border-violet-200 bg-white px-3 py-2 text-xs">
+              <button
+                type="button"
+                disabled={syncLoading || syncSaving || editingBarId !== null}
+                onClick={() => {
+                  setSyncSetup((current) => !current);
+                  setSyncEnabled(false);
+                  setScrolling(false);
+                }}
+                className={`rounded-lg px-4 py-2 font-semibold transition-colors ${
+                  syncSetup
+                    ? "bg-fuchsia-600 text-white"
+                    : "border border-fuchsia-300 bg-fuchsia-50 text-fuchsia-800"
+                }`}
+              >
+                {syncSetup ? "✓ Finish Setting Timings" : "🎯 Set Timings"}
+              </button>
+
+              <button
+                type="button"
+                disabled={
+                  barTimings.length === 0 ||
+                  syncSetup ||
+                  syncLoading ||
+                  syncSaving
+                }
+                onClick={() => {
+                  setSyncEnabled((current) => !current);
+                  setScrolling(false);
+                }}
+                className={`rounded-lg px-4 py-2 font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+                  syncEnabled
+                    ? "bg-emerald-600 text-white"
+                    : "border border-emerald-300 bg-emerald-50 text-emerald-800"
+                }`}
+              >
+                {syncEnabled ? "🔗 Sync ON" : "🔗 Sync OFF"}
+              </button>
+
+              <span className="font-medium text-slate-600">
+                {barTimings.length} / {bars.length} bars mapped
+              </span>
+
+              {syncSetup && (
+                <span className="text-fuchsia-700">
+                  Play YouTube, then click each bar at its start time.
+                </span>
+              )}
+
+              {barTimings.length > 0 && (
+                <button
+                  type="button"
+                  disabled={syncLoading || syncSaving || editingBarId !== null}
+                  onClick={() => {
+                    if (syncSaving || syncLoading) return;
+
+                    setBarTimings([]);
+                    setSyncEnabled(false);
+                    setActiveBarId(null);
+                    setSyncDirty(true);
+                    setSyncMessage("");
+                    setSyncError("");
+                  }}
+                  className="rounded-lg border border-rose-200 px-3 py-2 text-rose-700 hover:bg-rose-50"
+                >
+                  Clear Timings
+                </button>
+              )}
+              {window.guitarAPI?.saveSongSync && (
+                <button
+                  type="button"
+                  onClick={() => void saveTimings()}
+                  disabled={
+                    !syncDirty ||
+                    syncSaving ||
+                    syncLoading ||
+                    editingBarId !== null
+                  }
+                  className="rounded-lg bg-violet-600 px-4 py-2 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {syncSaving
+                    ? "⏳ Saving..."
+                    : syncError
+                      ? "🔄 Retry Save"
+                      : "💾 Save Timings"}
+                </button>
+              )}
+              {syncLoading && (
+                <span className="text-violet-600">Loading mappings...</span>
+              )}
+              {syncSaving && (
+                <span role="status" className="font-semibold text-violet-700">
+                  ⏳ Saving to SQLite... Please wait.
+                </span>
+              )}
+              {syncDirty && (
+                <span className="font-semibold text-amber-600">
+                  ● Unsaved changes
+                </span>
+              )}
+
+              {syncMessage && (
+                <span className="text-emerald-700">{syncMessage}</span>
+              )}
+
+              {syncError && (
+                <span role="alert" className="text-rose-600">
+                  {syncError}
+                </span>
+              )}
+            </div>
+          )}
+          {youtubeId && songType === "melody" && barTimings.length > 0 && (
+            <div className="shrink-0 border-b border-violet-200 bg-violet-50 px-4 py-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <span className="shrink-0 text-xs font-bold text-violet-800">
+                  🎼 Mapped Bars:
+                </span>
+
+                {barTimings.map((timing) => {
+                  const bar = bars.find((item) => item.id === timing.barId);
+
+                  const isActive = activeBarId === timing.barId;
+
+                  return (
+                    <div
+                      key={timing.barId}
+                      className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
+                        isActive
+                          ? "border-fuchsia-500 bg-fuchsia-100 text-fuchsia-900"
+                          : "border-violet-200 bg-white text-violet-700"
+                      }`}
+                    >
+                      <span className="font-semibold">
+                        Bar {bar?.number ?? "?"}
+                      </span>
+
+                      {syncSetup ? (
+                        editingBarId === timing.barId ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-1">
+                              <input
+                                type="text"
+                                value={editingTime}
+                                onChange={(event) => {
+                                  setEditingTime(event.target.value);
+                                  setEditingTimeError("");
+                                }}
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    applyEditedTiming(timing.barId);
+                                  }
+
+                                  if (event.key === "Escape") {
+                                    setEditingBarId(null);
+                                    setEditingTimeError("");
+                                  }
+                                }}
+                                disabled={syncSaving || syncLoading}
+                                autoFocus
+                                aria-label="Edit bar timestamp"
+                                className="w-24 rounded border border-fuchsia-400 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-fuchsia-300"
+                              />
+
+                              {editingTimeError && (
+                                <span
+                                  role="alert"
+                                  className="max-w-44 text-[10px] text-red-600"
+                                >
+                                  {editingTimeError}
+                                </span>
+                              )}
+                            </div>
+
+                            <button
+                              type="button"
+                              disabled={syncSaving || syncLoading}
+                              onClick={() => applyEditedTiming(timing.barId)}
+                              className="rounded bg-emerald-600 px-2 py-1 font-semibold text-white disabled:opacity-40"
+                              title="Apply timestamp"
+                            >
+                              ✓
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={syncSaving || syncLoading}
+                              onClick={() => {
+                                setEditingBarId(null);
+                                setEditingTimeError("");
+                              }}
+                              className="rounded border border-slate-300 px-2 py-1 text-slate-600 disabled:opacity-40"
+                              title="Cancel timestamp edit"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={
+                              syncSaving || syncLoading || editingBarId !== null
+                            }
+                            onClick={() => editBarTiming(timing.barId)}
+                            title="Edit this timestamp"
+                            className="rounded px-1 font-semibold tabular-nums text-fuchsia-700 underline decoration-dotted hover:bg-fuchsia-100 disabled:opacity-40"
+                          >
+                            ✏️ {formatTimingInput(timing.seconds)}
+                          </button>
+                        )
+                      ) : (
+                        <span className="tabular-nums">
+                          {formatVideoTime(timing.seconds)}
+                        </span>
+                      )}
+
+                      {syncSetup && (
+                        <button
+                          type="button"
+                          disabled={
+                            syncLoading || syncSaving || editingBarId !== null
+                          }
+                          onClick={() => {
+                            if (syncSaving || syncLoading) return;
+
+                            setBarTimings((current) =>
+                              current.filter(
+                                (item) => item.barId !== timing.barId,
+                              ),
+                            );
+
+                            setSyncDirty(true);
+                            setSyncMessage("");
+                            setSyncError("");
+                          }}
+                          title="Remove this bar timing"
+                          className="font-bold text-rose-500 hover:text-rose-700"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Main practice area */}
-      <section className="min-h-0 flex-1">
+      <section className="min-h-0 flex-1 pt-3">
         {songType === "tab" ? (
           pdfUrl ? (
             <PdfViewer pdfUrl={pdfUrl} />
@@ -628,13 +1238,12 @@ export default function PracticeWorkspace({
         }}
       >
         {youtubeId ? (
-          <iframe
+          <YouTubeSyncPlayer
             key={youtubeId}
-            src={`https://www.youtube.com/embed/${youtubeId}`}
+            videoId={youtubeId}
             title={`${title} - YouTube practice`}
-            allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="h-full w-full"
+            onTimeChange={setYoutubeTime}
+            onStatusChange={setYoutubeStatus}
           />
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-slate-400">
@@ -804,6 +1413,11 @@ export default function PracticeWorkspace({
               <Link
                 href={`/edit?id=${encodeURIComponent(songId)}`}
                 className="block rounded-lg border border-teal-600 px-4 py-3 text-center font-semibold text-teal-700"
+                onClick={(event) => {
+                  if (!canLeaveSong()) {
+                    event.preventDefault();
+                  }
+                }}
               >
                 ✏️ Edit Full Song
               </Link>
