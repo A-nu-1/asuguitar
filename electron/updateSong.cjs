@@ -15,6 +15,7 @@ function updateSong(payload) {
   const {
     id,
     title,
+    convert_to_melody,
     class_date,
     description,
     youtube_url,
@@ -42,6 +43,39 @@ function updateSong(payload) {
   if (!existing) {
     throw new Error("Song not found.");
   }
+
+  
+  // Only an explicit request can upgrade a PDF-only song.
+  // Chord songs cannot be converted this way.
+  if (
+    convert_to_melody !== undefined &&
+    typeof convert_to_melody !== "boolean"
+  ) {
+    throw new Error("Invalid melody conversion request.");
+  }
+
+  const upgradingToMelody = convert_to_melody === true;
+
+  if (upgradingToMelody && existing.song_type !== "tab") {
+    throw new Error("Only PDF-only songs can be upgraded to melody.");
+  }
+
+  if (upgradingToMelody && (!Array.isArray(bars) || bars.length === 0)) {
+    throw new Error("Extracted melody bars are required for conversion.");
+  }
+
+  if (
+    upgradingToMelody &&
+    !existing.pdf_filename &&
+    pdf_bytes == null
+  ) {
+    throw new Error("A PDF is required for melody conversion.");
+  }
+
+  const nextSongType = upgradingToMelody
+    ? "melody"
+    : existing.song_type;
+
 
   // A missing PDF means: keep the existing PDF.
   let newPdfFilename = null;
@@ -74,7 +108,7 @@ function updateSong(payload) {
   // Supplying bars replaces the melody bars.
   // Omitting bars leaves them untouched.
   if (bars !== undefined) {
-    if (existing.song_type !== "melody") {
+    if (nextSongType !== "melody") {
       throw new Error("Bar editing is only available for melody songs.");
     }
 
@@ -138,6 +172,7 @@ function updateSong(payload) {
         `
         UPDATE songs
         SET
+          song_type = ?,
           title = ?,
           class_date = ?,
           description = ?,
@@ -153,6 +188,7 @@ function updateSong(payload) {
       `,
       )
       .run(
+        nextSongType,
         title.trim(),
         class_date || null,
         description || null,
@@ -256,7 +292,7 @@ function updateSong(payload) {
     return {
       id,
       title: title.trim(),
-      song_type: existing.song_type,
+      song_type: nextSongType,
       pdf_filename: newPdfFilename || existing.pdf_filename,
       updated: true,
     };

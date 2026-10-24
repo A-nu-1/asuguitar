@@ -170,6 +170,7 @@ export type GuitarAPI = {
 
   // EDIT SONG
   updateSong: (payload: {
+    convert_to_melody?: boolean;
     id: string;
     title: string;
     class_date: string | null;

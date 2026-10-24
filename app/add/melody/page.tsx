@@ -2,21 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import * as pdfjsLib from "pdfjs-dist";
 import { useRouter } from "next/navigation";
-import type { Geometry, Song, Token } from "@/types/guitar";
-import { makeSong } from "@/lib/extraction/makeSong";
-import {
-  extractPdfLines,
-  detectTabGeometry,
-} from "@/lib/extraction/melody/extractPdfGeometry";
+import type { Song } from "@/types/guitar";
+import { extractMelodyFromPdf } from "@/lib/extraction/melody/extractMelodyFromPdf";
 import MelodyTabView from "@/components/practice/MelodyTabView";
 import MelodyEditor from "@/components/melody/MelodyEditor";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/build/pdf.worker.min.mjs",
-  import.meta.url,
-).toString();
 
 export default function AddMelodyPage() {
   const [file, setFile] = useState<File | null>(null);
@@ -77,79 +67,39 @@ export default function AddMelodyPage() {
 
     return () => cancelAnimationFrame(frame);
   }, [saveDecision]);
-  async function handleExtract() {
-    if (!file || extracting) return;
 
-    setExtracting(true);
-    setError("");
-    setSong(null);
-    setSaveDecision(null);
 
-    try {
-      const pdf = await pdfjsLib.getDocument({
-        data: new Uint8Array(await file.arrayBuffer()),
-      }).promise;
+async function handleExtract() {
+  if (!file || extracting) return;
 
-      const tokens: Token[] = [];
-      const geometry: Geometry[] = [];
+  setExtracting(true);
+  setError("");
+  setSong(null);
+  setSaveDecision(null);
 
-      for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
-        const page = await pdf.getPage(pageNumber);
+  try {
+    const pdfBytes = new Uint8Array(
+      await file.arrayBuffer(),
+    );
 
-        const lines = await extractPdfLines(page, pageNumber);
-        geometry.push(...detectTabGeometry(lines));
+    const extractedSong = await extractMelodyFromPdf(
+      pdfBytes,
+      title,
+      file.name,
+    );
 
-        const content = await page.getTextContent();
-        const viewport = page.getViewport({ scale: 1 });
-
-        for (const item of content.items) {
-          if (!("str" in item) || !item.str.trim()) continue;
-
-          const transform = pdfjsLib.Util.transform(
-            viewport.transform,
-            item.transform,
-          );
-
-          tokens.push({
-            text: item.str,
-            x: Number(transform[4].toFixed(2)),
-            y: Number(transform[5].toFixed(2)),
-            page: pageNumber,
-          });
-        }
-      }
-
-      if (tokens.length === 0) {
-        throw new Error("No embedded text found. This PDF may be scanned.");
-      }
-
-      if (geometry.length === 0) {
-        throw new Error("No tablature bars detected in this PDF.");
-      }
-
-      const extractedSong = makeSong(
-        tokens,
-        "pdfjs",
-        {
-          label: title.trim() || file.name.replace(/\.pdf$/i, ""),
-          key: file.name,
-          mode: "melody",
-        },
-        geometry,
-      );
-
-      extractedSong.bars = extractedSong.bars.map((bar, index) => ({
-        ...bar,
-        number: index + 1,
-      }));
-
-      setSong(extractedSong);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setExtracting(false);
-    }
+    setSong(extractedSong);
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : String(err),
+    );
+  } finally {
+    setExtracting(false);
   }
+}
+
 
   function choosePdfOnly() {
     if (!file) return;
