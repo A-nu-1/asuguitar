@@ -7,6 +7,7 @@ import PdfViewer, { type PdfPosition } from "@/components/practice/PdfViewer";
 import type { Bar, ChordLine } from "@/types/guitar";
 import Link from "next/link";
 import YouTubeSyncPlayer from "@/components/practice/YouTubeSyncPlayer";
+import FloatingStrummingPattern from "@/components/practice/FloatingStrummingPattern";
 
 const SONG_ICONS = Array.from(
   { length: 24 },
@@ -775,6 +776,14 @@ export default function PracticeWorkspace({
   }
   return (
     <div className="flex h-full min-h-0 flex-col bg-slate-100">
+      {/* Floating guitar reference — chord songs only */}
+      {songType === "chords" && (
+        <FloatingStrummingPattern
+          key={songId}
+          capo={capo}
+          strummingPattern={strummingPattern}
+        />
+      )}
       {/* Magical practice navigation */}
       <div
         className="
@@ -967,47 +976,46 @@ export default function PracticeWorkspace({
             ))}
           </div>
         )}
-        
-{/* Quick YouTube Sync — available during practice */}
-{youtubeId && (
-  <button
-    type="button"
-    disabled={
-      syncLoading ||
-      syncSaving ||
-      syncSetup ||
-      (isPdfView
-        ? pdfTimings.length === 0
-        : barTimings.length === 0)
-    }
-    onClick={() => {
-      setSyncEnabled((current) => !current);
-      setScrolling(false);
-    }}
-    aria-label={
-      syncEnabled
-        ? "Turn YouTube synchronization off"
-        : "Turn YouTube synchronization on"
-    }
-    aria-pressed={syncEnabled}
-    title={
-      syncSetup
-        ? "Finish setting timings first"
-        : syncEnabled
-          ? "Turn YouTube Sync OFF"
-          : "Turn YouTube Sync ON"
-    }
-    className={`flex h-8 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-bold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
-      syncEnabled
-        ? "border-emerald-300 bg-emerald-500 text-white shadow-[0_0_12px_#10b98188]"
-        : "border-violet-300/50 bg-violet-950/40 text-violet-200 hover:bg-violet-500/30"
-    }`}
-  >
-    <span aria-hidden="true" className="h-5">🔗</span>
-    <span className="text-xs">{syncEnabled ? "ON" : "OFF"}</span>
-  </button>
-)}
 
+        {/* Quick YouTube Sync — available during practice */}
+        {youtubeId && (
+          <button
+            type="button"
+            disabled={
+              syncLoading ||
+              syncSaving ||
+              syncSetup ||
+              (isPdfView ? pdfTimings.length === 0 : barTimings.length === 0)
+            }
+            onClick={() => {
+              setSyncEnabled((current) => !current);
+              setScrolling(false);
+            }}
+            aria-label={
+              syncEnabled
+                ? "Turn YouTube synchronization off"
+                : "Turn YouTube synchronization on"
+            }
+            aria-pressed={syncEnabled}
+            title={
+              syncSetup
+                ? "Finish setting timings first"
+                : syncEnabled
+                  ? "Turn YouTube Sync OFF"
+                  : "Turn YouTube Sync ON"
+            }
+            className={`flex h-8 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-bold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+              syncEnabled
+                ? "border-emerald-300 bg-emerald-500 text-white shadow-[0_0_12px_#10b98188]"
+                : "border-violet-300/50 bg-violet-950/40 text-violet-200 hover:bg-violet-500/30"
+            }`}
+          >
+            <span aria-hidden="true" className="h-5">
+              🔗
+            </span>
+            <span className="text-xs">{syncEnabled ? "ON" : "OFF"}</span>
+          </button>
+        )}
 
         {/* RIGHT: Crystal tools, information and home */}
         <div className="flex shrink-0 items-center gap-2">
@@ -1233,7 +1241,7 @@ export default function PracticeWorkspace({
                 onClick={() => {
                   setSyncSetup((current) => !current);
                   setSyncEnabled(false);
-                  setScrolling(false);                  
+                  setScrolling(false);
                 }}
                 className={`rounded-lg px-4 py-2 font-semibold transition-colors ${
                   syncSetup
