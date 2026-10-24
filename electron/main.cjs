@@ -542,13 +542,13 @@ app.whenReady().then(async () => {
           `
       SELECT id
       FROM songs
-      WHERE id = ? AND song_type = 'tab'
+      WHERE id = ? AND song_type IN ('tab', 'melody')
     `,
         )
         .get(songId);
 
       if (!song) {
-        throw new Error("PDF-only song not found.");
+        throw new Error("PDF-only song not found. PDF synchronization is available only for PDF and melody songs.");
       }
 
       // Validate everything before modifying the database.

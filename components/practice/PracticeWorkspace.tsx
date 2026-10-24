@@ -94,6 +94,7 @@ export default function PracticeWorkspace({
 
   const [scrolling, setScrolling] = useState(false);
   const [speed, setSpeed] = useState(30);
+  const [pdfResetCounter, setPdfResetCounter] = useState(0);
   // Currently selected guitar bar.
   // Later, YouTube synchronization will control this.
   const [activeBarId, setActiveBarId] = useState<string | null>(null);
@@ -109,7 +110,24 @@ export default function PracticeWorkspace({
   const [barTimings, setBarTimings] = useState<BarTiming[]>([]);
   const [syncLoading, setSyncLoading] = useState(false);
   const [syncSaving, setSyncSaving] = useState(false);
-  const [syncDirty, setSyncDirty] = useState(false);
+  const [musicView, setMusicView] = useState<"melody" | "pdf">("melody");
+
+  const isPdfView =
+    songType === "tab" || (songType === "melody" && musicView === "pdf");
+
+  const [barDirty, setBarDirty] = useState(false);
+  const [pdfDirty, setPdfDirty] = useState(false);
+
+  // Existing controls continue to use the active view's dirty flag.
+  const syncDirty = isPdfView ? pdfDirty : barDirty;
+
+  function setSyncDirty(value: boolean) {
+    if (isPdfView) {
+      setPdfDirty(value);
+    } else {
+      setBarDirty(value);
+    }
+  }
   const [syncError, setSyncError] = useState("");
   const [syncMessage, setSyncMessage] = useState("");
   const [editingBarId, setEditingBarId] = useState<string | null>(null);
@@ -178,7 +196,9 @@ export default function PracticeWorkspace({
     setSyncEnabled(false);
     setActiveBarId(null);
     setYoutubeTime(0);
-    setSyncDirty(false);
+    setBarDirty(false);
+    setPdfDirty(false);
+    setMusicView("melody");
     setSyncError("");
     setSyncMessage("");
     setEditingBarId(null);
@@ -193,20 +213,41 @@ export default function PracticeWorkspace({
     async function loadMappings() {
       const api = window.guitarAPI;
 
-      if (songType === "tab") {
-        if (!youtubeId || !api?.getPdfSync) {
-          setSyncLoading(false);
-          return;
-        }
+      if (!youtubeId) {
+        setSyncLoading(false);
+        return;
+      }
 
-        setSyncLoading(true);
+      setSyncLoading(true);
 
-        try {
-          const saved = await api.getPdfSync(songId, youtubeId);
+      try {
+        if (songType === "melody" || songType === "chords") {
+          const loadBarSync =
+            songType === "chords" ? api?.getChordSync : api?.getSongSync;
+
+          const savedBars = loadBarSync
+            ? await loadBarSync(songId, youtubeId)
+            : !api
+              ? (demoTimings ?? [])
+              : [];
 
           if (cancelled) return;
 
-          const mappings: PdfTiming[] = saved.map((item) => ({
+          setBarTimings(savedBars);
+        }
+
+        if ((songType === "tab" || songType === "melody") && pdfUrl) {
+          if (api && !api.getPdfSync) {
+            throw new Error("PDF synchronization API is unavailable.");
+          }
+
+          const savedPdf = api?.getPdfSync
+            ? await api.getPdfSync(songId, youtubeId)
+            : [];
+
+          if (cancelled) return;
+
+          const mappings: PdfTiming[] = savedPdf.map((item) => ({
             id: `saved-${item.id}`,
             page: item.page,
             position: item.position,
@@ -214,51 +255,11 @@ export default function PracticeWorkspace({
           }));
 
           setPdfTimings(mappings);
-          setSyncMessage(`${mappings.length} PDF markers loaded.`);
-        } catch (error) {
-          if (!cancelled) {
-            setSyncError(
-              error instanceof Error
-                ? error.message
-                : "Could not load PDF synchronization markers.",
-            );
-          }
-        } finally {
-          if (!cancelled) setSyncLoading(false);
         }
 
-        return;
-      }
-
-      const loadSync =
-        songType === "chords" ? api?.getChordSync : api?.getSongSync;
-
-      if (!youtubeId || !loadSync) {
-        // Browser demo only. Never replace Electron's saved mappings.
-        const sampleMappings = !api && youtubeId ? (demoTimings ?? []) : [];
-
-        setBarTimings(sampleMappings);
-        setSyncLoading(false);
-        setEditingBarId(null);
-        setEditingTime("");
-        setEditingTimeError("");
-
-        if (sampleMappings.length > 0) {
-          setSyncMessage(`${sampleMappings.length} sample mappings loaded.`);
+        if (!cancelled) {
+          setSyncMessage("YouTube synchronization mappings loaded.");
         }
-
-        return;
-      }
-
-      setSyncLoading(true);
-
-      try {
-        const saved = await loadSync(songId, youtubeId);
-
-        if (cancelled) return;
-
-        setBarTimings(saved);
-        setSyncMessage(`${saved.length} mappings loaded.`);
       } catch (error) {
         if (!cancelled) {
           setSyncError(
@@ -268,7 +269,9 @@ export default function PracticeWorkspace({
           );
         }
       } finally {
-        if (!cancelled) setSyncLoading(false);
+        if (!cancelled) {
+          setSyncLoading(false);
+        }
       }
     }
 
@@ -277,7 +280,7 @@ export default function PracticeWorkspace({
     return () => {
       cancelled = true;
     };
-  }, [songId, youtubeId, demoTimings, songType]);
+  }, [songId, youtubeId, demoTimings, songType, pdfUrl]);
 
   // Restore preferred YouTube height.
   useEffect(() => {
@@ -299,7 +302,7 @@ export default function PracticeWorkspace({
 
   // Smooth scrolling for extracted melody/chords.
   useEffect(() => {
-    if (!scrolling || songType === "tab") return;
+    if (!scrolling || isPdfView) return;
 
     const container = scrollRef.current;
     if (!container) return;
@@ -339,7 +342,7 @@ export default function PracticeWorkspace({
     frame = requestAnimationFrame(animate);
 
     return () => cancelAnimationFrame(frame);
-  }, [scrolling, songType]);
+  }, [scrolling, isPdfView]);
 
   // Resize YouTube using the divider.
   useEffect(() => {
@@ -387,7 +390,7 @@ export default function PracticeWorkspace({
       return false;
     }
 
-    if (syncDirty) {
+    if (barDirty || pdfDirty) {
       return window.confirm(
         "You have unsaved YouTube timing changes.\n\n" +
           "OK = Leave and discard unsaved changes\n" +
@@ -400,7 +403,9 @@ export default function PracticeWorkspace({
 
   // Warn when closing or reloading with pending changes.
   useEffect(() => {
-    if (isDemoMode || (!syncDirty && !syncSaving)) return;
+    if (isDemoMode || (!barDirty && !pdfDirty && !syncSaving)) {
+      return;
+    }
 
     function handleBeforeUnload(event: BeforeUnloadEvent) {
       event.preventDefault();
@@ -412,10 +417,15 @@ export default function PracticeWorkspace({
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [syncDirty, syncSaving, isDemoMode]);
+  }, [barDirty, pdfDirty, syncSaving, isDemoMode]);
 
   function resetScroll() {
     setScrolling(false);
+
+    if (isPdfView) {
+      setPdfResetCounter((current) => current + 1);
+      return;
+    }
 
     scrollRef.current?.scrollTo({
       top: 0,
@@ -445,11 +455,7 @@ export default function PracticeWorkspace({
   }
   // Match the playing YouTube timestamp to a guitar bar.
   useEffect(() => {
-    if (
-      !syncEnabled ||
-      syncSetup ||
-      (songType !== "melody" && songType !== "chords")
-    ) {
+    if (!syncEnabled || syncSetup || isPdfView) {
       return;
     }
 
@@ -459,10 +465,12 @@ export default function PracticeWorkspace({
       .at(-1);
 
     setActiveBarId(currentBar?.barId ?? null);
-  }, [youtubeTime, barTimings, syncEnabled, syncSetup, songType]);
+  }, [youtubeTime, barTimings, syncEnabled, syncSetup, songType, isPdfView]);
   // Keep the synchronized bar visible inside the music panel.
   useEffect(() => {
-    if (!syncEnabled || syncSetup || !activeBarId) return;
+    if (isPdfView || !syncEnabled || syncSetup || !activeBarId) {
+      return;
+    }
 
     const container = scrollRef.current;
     if (!container) return;
@@ -489,7 +497,7 @@ export default function PracticeWorkspace({
       top: Math.max(0, top),
       behavior: "smooth",
     });
-  }, [activeBarId, syncEnabled, syncSetup, songType]);
+  }, [activeBarId, syncEnabled, syncSetup, songType, isPdfView]);
 
   function parseTimingInput(value: string): number | null {
     const input = value.trim();
@@ -607,7 +615,7 @@ export default function PracticeWorkspace({
   }
 
   useEffect(() => {
-    if (songType !== "tab" || !syncEnabled || syncSetup) {
+    if (!isPdfView || !syncEnabled || syncSetup) {
       return;
     }
 
@@ -618,7 +626,7 @@ export default function PracticeWorkspace({
     const nextId = currentMarker?.id ?? null;
 
     setActivePdfId((current) => (current === nextId ? current : nextId));
-  }, [songType, syncEnabled, syncSetup, youtubeTime, pdfTimings]);
+  }, [isPdfView, syncEnabled, syncSetup, youtubeTime, pdfTimings]);
 
   async function saveTimings() {
     if (
@@ -649,7 +657,7 @@ export default function PracticeWorkspace({
         savedCount: number;
       };
 
-      if (songType === "tab") {
+      if (isPdfView) {
         if (!api.savePdfSync) {
           throw new Error("PDF saving API is unavailable.");
         }
@@ -682,12 +690,11 @@ export default function PracticeWorkspace({
 
       setSyncDirty(false);
 
-      const label =
-        songType === "tab"
-          ? "PDF markers"
-          : songType === "chords"
-            ? "chord lines"
-            : "bars";
+      const label = isPdfView
+        ? "PDF markers"
+        : songType === "chords"
+          ? "chord lines"
+          : "bars";
 
       setSyncMessage(`✅ ${result.savedCount} ${label} saved successfully!`);
     } catch (error) {
@@ -806,8 +813,8 @@ export default function PracticeWorkspace({
           </h1>
         </div>
 
-        {/* CENTER: Music scrolling controls */}
-        {songType !== "tab" && (
+        {/* CENTER: Shared music scrolling controls */}
+        {
           <div
             aria-label="Music scrolling controls"
             className="
@@ -910,7 +917,97 @@ export default function PracticeWorkspace({
               </span>
             </label>
           </div>
+        }
+
+        {songType === "melody" && pdfUrl && (
+          <div
+            role="group"
+            aria-label="Music view"
+            className="flex shrink-0 items-center gap-1 rounded-full border border-fuchsia-300/50 bg-violet-950/50 p-1"
+          >
+            {(["melody", "pdf"] as const).map((view) => (
+              <button
+                key={view}
+                type="button"
+                disabled={
+                  syncSaving ||
+                  syncLoading ||
+                  editingBarId !== null ||
+                  editingPdfId !== null
+                }
+                onClick={() => {
+                  if (musicView === view) return;
+
+                  setMusicView(view);
+                  setSyncSetup(false);
+                  setSyncEnabled(false);
+                  setScrolling(false);
+                  setSyncError("");
+                  setSyncMessage("");
+                }}
+                aria-label={view === "melody" ? "Melody view" : "PDF view"}
+                aria-pressed={musicView === view}
+                title={view === "melody" ? "🎸 Melody" : "📄 PDF"}
+                className={`relative flex h-9 w-9 items-center justify-center rounded-full text-lg transition-all disabled:opacity-40 ${
+                  musicView === view
+                    ? "bg-fuchsia-500 text-white shadow-[0_0_12px_#d946ef88]"
+                    : "text-violet-200 hover:bg-violet-400/30"
+                }`}
+              >
+                {view === "melody" ? "🎸" : "📄"}
+
+                {((view === "melody" && barDirty) ||
+                  (view === "pdf" && pdfDirty)) && (
+                  <span
+                    className="absolute right-0 top-0 h-2 w-2 rounded-full bg-amber-400 ring-1 ring-violet-950"
+                    aria-label="Unsaved changes"
+                  />
+                )}
+              </button>
+            ))}
+          </div>
         )}
+        
+{/* Quick YouTube Sync — available during practice */}
+{youtubeId && (
+  <button
+    type="button"
+    disabled={
+      syncLoading ||
+      syncSaving ||
+      syncSetup ||
+      (isPdfView
+        ? pdfTimings.length === 0
+        : barTimings.length === 0)
+    }
+    onClick={() => {
+      setSyncEnabled((current) => !current);
+      setScrolling(false);
+    }}
+    aria-label={
+      syncEnabled
+        ? "Turn YouTube synchronization off"
+        : "Turn YouTube synchronization on"
+    }
+    aria-pressed={syncEnabled}
+    title={
+      syncSetup
+        ? "Finish setting timings first"
+        : syncEnabled
+          ? "Turn YouTube Sync OFF"
+          : "Turn YouTube Sync ON"
+    }
+    className={`flex h-8 shrink-0 items-center gap-1 rounded-full border px-2 text-xs font-bold transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+      syncEnabled
+        ? "border-emerald-300 bg-emerald-500 text-white shadow-[0_0_12px_#10b98188]"
+        : "border-violet-300/50 bg-violet-950/40 text-violet-200 hover:bg-violet-500/30"
+    }`}
+  >
+    <span aria-hidden="true" className="h-5">🔗</span>
+    <span className="text-xs">{syncEnabled ? "ON" : "OFF"}</span>
+  </button>
+)}
+
 
         {/* RIGHT: Crystal tools, information and home */}
         <div className="flex shrink-0 items-center gap-2">
@@ -1077,6 +1174,7 @@ export default function PracticeWorkspace({
             🏰
           </Link>
         </div>
+
         {youtubeId && (
           <button
             type="button"
@@ -1090,7 +1188,7 @@ export default function PracticeWorkspace({
             title={
               syncSaving
                 ? "Saving YouTube timings..."
-                : syncDirty
+                : barDirty || pdfDirty
                   ? "YouTube synchronization - unsaved changes"
                   : "YouTube synchronization"
             }
@@ -1100,7 +1198,13 @@ export default function PracticeWorkspace({
                                  bg-[#302052] text-violet-100
                                 shadow-lg transition-colors hover:bg-violet-700"
           >
-            {syncSaving ? "⏳" : syncDirty ? "●" : syncPanelOpen ? "⌃" : "⌄"}
+            {syncSaving
+              ? "⏳"
+              : barDirty || pdfDirty
+                ? "●"
+                : syncPanelOpen
+                  ? "⌃"
+                  : "⌄"}
           </button>
         )}
       </div>
@@ -1121,7 +1225,7 @@ export default function PracticeWorkspace({
               </span>
             </div>
           )}
-          {youtubeId && (songType === "melody" || songType === "chords") && (
+          {youtubeId && !isPdfView && (
             <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-b border-violet-200 bg-white px-3 py-2 text-xs">
               <button
                 type="button"
@@ -1129,7 +1233,7 @@ export default function PracticeWorkspace({
                 onClick={() => {
                   setSyncSetup((current) => !current);
                   setSyncEnabled(false);
-                  setScrolling(false);
+                  setScrolling(false);                  
                 }}
                 className={`rounded-lg px-4 py-2 font-semibold transition-colors ${
                   syncSetup
@@ -1240,155 +1344,151 @@ export default function PracticeWorkspace({
               )}
             </div>
           )}
-          {youtubeId &&
-            (songType === "melody" || songType === "chords") &&
-            barTimings.length > 0 && (
-              <div className="shrink-0 border-b border-violet-200 bg-violet-50 px-4 py-2">
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
-                  <span className="shrink-0 text-xs font-bold text-violet-800">
-                    🎼 Mapped {songType === "chords" ? "Chord Lines" : "Bars"}:
-                  </span>
+          {youtubeId && !isPdfView && barTimings.length > 0 && (
+            <div className="shrink-0 border-b border-violet-200 bg-violet-50 px-4 py-2">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <span className="shrink-0 text-xs font-bold text-violet-800">
+                  🎼 Mapped {songType === "chords" ? "Chord Lines" : "Bars"}:
+                </span>
 
-                  {barTimings.map((timing) => {
-                    const bar = bars.find((item) => item.id === timing.barId);
-                    const chordLineIndex = chordLines.findIndex(
-                      (item) => item.id === timing.barId,
-                    );
+                {barTimings.map((timing) => {
+                  const bar = bars.find((item) => item.id === timing.barId);
+                  const chordLineIndex = chordLines.findIndex(
+                    (item) => item.id === timing.barId,
+                  );
 
-                    const isActive = activeBarId === timing.barId;
+                  const isActive = activeBarId === timing.barId;
 
-                    return (
-                      <div
-                        key={timing.barId}
-                        className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
-                          isActive
-                            ? "border-fuchsia-500 bg-fuchsia-100 text-fuchsia-900"
-                            : "border-violet-200 bg-white text-violet-700"
-                        }`}
-                      >
-                        <span className="font-semibold">
-                          {songType === "chords"
-                            ? `Line ${chordLineIndex >= 0 ? chordLineIndex + 1 : "?"}`
-                            : `Bar ${bar?.number ?? "?"}`}
-                        </span>
+                  return (
+                    <div
+                      key={timing.barId}
+                      className={`flex shrink-0 items-center gap-2 rounded-lg border px-3 py-1.5 text-xs ${
+                        isActive
+                          ? "border-fuchsia-500 bg-fuchsia-100 text-fuchsia-900"
+                          : "border-violet-200 bg-white text-violet-700"
+                      }`}
+                    >
+                      <span className="font-semibold">
+                        {songType === "chords"
+                          ? `Line ${chordLineIndex >= 0 ? chordLineIndex + 1 : "?"}`
+                          : `Bar ${bar?.number ?? "?"}`}
+                      </span>
 
-                        {syncSetup ? (
-                          editingBarId === timing.barId ? (
-                            <div className="flex items-center gap-2">
-                              <div className="flex flex-col gap-1">
-                                <input
-                                  type="text"
-                                  value={editingTime}
-                                  onChange={(event) => {
-                                    setEditingTime(event.target.value);
-                                    setEditingTimeError("");
-                                  }}
-                                  onKeyDown={(event) => {
-                                    if (event.key === "Enter") {
-                                      applyEditedTiming(timing.barId);
-                                    }
-
-                                    if (event.key === "Escape") {
-                                      setEditingBarId(null);
-                                      setEditingTimeError("");
-                                    }
-                                  }}
-                                  disabled={syncSaving || syncLoading}
-                                  autoFocus
-                                  aria-label={
-                                    songType === "chords"
-                                      ? "Edit chord line timestamp"
-                                      : "Edit bar timestamp"
-                                  }
-                                  className="w-24 rounded border border-fuchsia-400 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-fuchsia-300"
-                                />
-
-                                {editingTimeError && (
-                                  <span
-                                    role="alert"
-                                    className="max-w-44 text-[10px] text-red-600"
-                                  >
-                                    {editingTimeError}
-                                  </span>
-                                )}
-                              </div>
-
-                              <button
-                                type="button"
-                                disabled={syncSaving || syncLoading}
-                                onClick={() => applyEditedTiming(timing.barId)}
-                                className="rounded bg-emerald-600 px-2 py-1 font-semibold text-white disabled:opacity-40"
-                                title="Apply timestamp"
-                              >
-                                ✓
-                              </button>
-
-                              <button
-                                type="button"
-                                disabled={syncSaving || syncLoading}
-                                onClick={() => {
-                                  setEditingBarId(null);
+                      {syncSetup ? (
+                        editingBarId === timing.barId ? (
+                          <div className="flex items-center gap-2">
+                            <div className="flex flex-col gap-1">
+                              <input
+                                type="text"
+                                value={editingTime}
+                                onChange={(event) => {
+                                  setEditingTime(event.target.value);
                                   setEditingTimeError("");
                                 }}
-                                className="rounded border border-slate-300 px-2 py-1 text-slate-600 disabled:opacity-40"
-                                title="Cancel timestamp edit"
-                              >
-                                ✕
-                              </button>
+                                onKeyDown={(event) => {
+                                  if (event.key === "Enter") {
+                                    applyEditedTiming(timing.barId);
+                                  }
+
+                                  if (event.key === "Escape") {
+                                    setEditingBarId(null);
+                                    setEditingTimeError("");
+                                  }
+                                }}
+                                disabled={syncSaving || syncLoading}
+                                autoFocus
+                                aria-label={
+                                  songType === "chords"
+                                    ? "Edit chord line timestamp"
+                                    : "Edit bar timestamp"
+                                }
+                                className="w-24 rounded border border-fuchsia-400 bg-white px-2 py-1 text-xs text-slate-900 outline-none focus:ring-2 focus:ring-fuchsia-300"
+                              />
+
+                              {editingTimeError && (
+                                <span
+                                  role="alert"
+                                  className="max-w-44 text-[10px] text-red-600"
+                                >
+                                  {editingTimeError}
+                                </span>
+                              )}
                             </div>
-                          ) : (
+
                             <button
                               type="button"
-                              disabled={
-                                syncSaving ||
-                                syncLoading ||
-                                editingBarId !== null
-                              }
-                              onClick={() => editBarTiming(timing.barId)}
-                              title="Edit this timestamp"
-                              className="rounded px-1 font-semibold tabular-nums text-fuchsia-700 underline decoration-dotted hover:bg-fuchsia-100 disabled:opacity-40"
+                              disabled={syncSaving || syncLoading}
+                              onClick={() => applyEditedTiming(timing.barId)}
+                              className="rounded bg-emerald-600 px-2 py-1 font-semibold text-white disabled:opacity-40"
+                              title="Apply timestamp"
                             >
-                              ✏️ {formatTimingInput(timing.seconds)}
+                              ✓
                             </button>
-                          )
-                        ) : (
-                          <span className="tabular-nums">
-                            {formatVideoTime(timing.seconds)}
-                          </span>
-                        )}
 
-                        {syncSetup && (
+                            <button
+                              type="button"
+                              disabled={syncSaving || syncLoading}
+                              onClick={() => {
+                                setEditingBarId(null);
+                                setEditingTimeError("");
+                              }}
+                              className="rounded border border-slate-300 px-2 py-1 text-slate-600 disabled:opacity-40"
+                              title="Cancel timestamp edit"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
                           <button
                             type="button"
                             disabled={
-                              syncLoading || syncSaving || editingBarId !== null
+                              syncSaving || syncLoading || editingBarId !== null
                             }
-                            onClick={() => {
-                              if (syncSaving || syncLoading) return;
-
-                              setBarTimings((current) =>
-                                current.filter(
-                                  (item) => item.barId !== timing.barId,
-                                ),
-                              );
-
-                              setSyncDirty(true);
-                              setSyncMessage("");
-                              setSyncError("");
-                            }}
-                            title="Remove this bar timing"
-                            className="font-bold text-rose-500 hover:text-rose-700"
+                            onClick={() => editBarTiming(timing.barId)}
+                            title="Edit this timestamp"
+                            className="rounded px-1 font-semibold tabular-nums text-fuchsia-700 underline decoration-dotted hover:bg-fuchsia-100 disabled:opacity-40"
                           >
-                            ✕
+                            ✏️ {formatTimingInput(timing.seconds)}
                           </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                        )
+                      ) : (
+                        <span className="tabular-nums">
+                          {formatVideoTime(timing.seconds)}
+                        </span>
+                      )}
+
+                      {syncSetup && (
+                        <button
+                          type="button"
+                          disabled={
+                            syncLoading || syncSaving || editingBarId !== null
+                          }
+                          onClick={() => {
+                            if (syncSaving || syncLoading) return;
+
+                            setBarTimings((current) =>
+                              current.filter(
+                                (item) => item.barId !== timing.barId,
+                              ),
+                            );
+
+                            setSyncDirty(true);
+                            setSyncMessage("");
+                            setSyncError("");
+                          }}
+                          title="Remove this bar timing"
+                          className="font-bold text-rose-500 hover:text-rose-700"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            )}
-          {youtubeId && songType === "tab" && pdfUrl && (
+            </div>
+          )}
+          {youtubeId && isPdfView && pdfUrl && (
             <>
               <div className="flex shrink-0 flex-wrap items-center justify-center gap-3 border-b bg-white px-3 py-2 text-xs">
                 <button
@@ -1397,6 +1497,7 @@ export default function PracticeWorkspace({
                   onClick={() => {
                     setSyncSetup((current) => !current);
                     setSyncEnabled(false);
+                    setScrolling(false);
                   }}
                   className={`rounded-lg px-4 py-2 font-semibold disabled:opacity-40 ${
                     syncSetup
@@ -1417,7 +1518,10 @@ export default function PracticeWorkspace({
                     syncLoading ||
                     syncSaving
                   }
-                  onClick={() => setSyncEnabled((current) => !current)}
+                  onClick={() => {
+                    setSyncEnabled((current) => !current);
+                    setScrolling(false);
+                  }}
                   className={`rounded-lg px-4 py-2 font-semibold disabled:opacity-40 ${
                     syncEnabled
                       ? "bg-emerald-600 text-white"
@@ -1651,13 +1755,31 @@ export default function PracticeWorkspace({
       )}
 
       {/* Main practice area */}
-      <section className="min-h-0 flex-1 pt-3">
-        {songType === "tab" ? (
-          pdfUrl ? (
-            <div className="h-full min-h-0">
+      <section className="relative min-h-0 flex-1 pt-3">
+        {/* Melody/chords stay mounted to preserve scroll position. */}
+        {songType !== "tab" && (
+          <div
+            ref={scrollRef}
+            className={`absolute inset-0 overflow-y-auto p-4 ${
+              isPdfView ? "invisible pointer-events-none" : "visible"
+            }`}
+          >
+            {renderMusic()}
+          </div>
+        )}
+
+        {/* PDF stays mounted while switching views. */}
+        {(songType === "tab" || songType === "melody") && (
+          <div
+            className={`absolute inset-0 ${
+              isPdfView ? "visible" : "invisible pointer-events-none"
+            }`}
+          >
+            {pdfUrl ? (
               <PdfViewer
                 pdfUrl={pdfUrl}
                 selectionEnabled={
+                  isPdfView &&
                   syncSetup &&
                   !syncLoading &&
                   !syncSaving &&
@@ -1665,17 +1787,17 @@ export default function PracticeWorkspace({
                 }
                 activePosition={activePdfPosition}
                 onPositionSelect={handlePdfPositionSelect}
-                syncFollowing={syncEnabled}
+                syncFollowing={isPdfView && syncEnabled}
+                hideControls
+                externalScrolling={scrolling}
+                externalSpeed={speed}
+                resetCounter={pdfResetCounter}
               />
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-slate-500">
-              Original PDF unavailable.
-            </div>
-          )
-        ) : (
-          <div ref={scrollRef} className="h-full overflow-y-auto p-4">
-            {renderMusic()}
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-slate-500">
+                Original PDF unavailable.
+              </div>
+            )}
           </div>
         )}
       </section>

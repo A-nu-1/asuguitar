@@ -19,6 +19,10 @@ type Props = {
   activePosition?: PdfPosition | null;
   onPositionSelect?: (position: PdfPosition) => void;
   syncFollowing?: boolean;
+  hideControls?: boolean;
+  externalScrolling?: boolean;
+  externalSpeed?: number;
+  resetCounter?: number;
 };
 
 export default function PdfViewer({
@@ -26,7 +30,11 @@ export default function PdfViewer({
   selectionEnabled = false,
   activePosition = null,
   onPositionSelect,
-   syncFollowing = false,
+  syncFollowing = false,
+  hideControls = false,
+  externalScrolling = false,
+  externalSpeed = 30,
+  resetCounter = 0,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +46,10 @@ export default function PdfViewer({
   const speedRef = useRef(30);
 
   useEffect(() => {
-    if (!scrolling) return;
+    const shouldScroll =
+      !syncFollowing && (hideControls ? externalScrolling : scrolling);
+
+    if (!shouldScroll) return;
 
     const container = containerRef.current;
     if (!container) return;
@@ -73,7 +84,20 @@ export default function PdfViewer({
       scrollingRef.current = false;
       cancelAnimationFrame(frame);
     };
-  }, [scrolling]);
+  }, [scrolling, hideControls, externalScrolling, syncFollowing]);
+
+  useEffect(() => {
+    speedRef.current = hideControls ? externalSpeed : speed;
+  }, [hideControls, externalSpeed, speed]);
+
+  useEffect(() => {
+    if (!hideControls) return;
+
+    containerRef.current?.scrollTo({
+      top: 0,
+      behavior: "instant",
+    });
+  }, [resetCounter, hideControls]);
 
   useEffect(() => {
     let cancelled = false;
@@ -227,53 +251,55 @@ export default function PdfViewer({
   }, [activePosition, loading, pdfUrl]);
 
   useEffect(() => {
-  if (syncFollowing) {
-    setScrolling(false);
-  }
-}, [syncFollowing]);
+    if (syncFollowing) {
+      setScrolling(false);
+    }
+  }, [syncFollowing]);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Scroll controls */}
-      <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-white px-3 py-2">
-        <button
-          type="button"
-          disabled={loading || !!error || syncFollowing}
-          onClick={() => setScrolling((current) => !current)}
-          className="rounded bg-teal-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
-        >
-          {scrolling ? "Pause" : "Start"}
-        </button>
+      {!hideControls && (
+        <div className="flex shrink-0 flex-wrap items-center gap-3 border-b bg-white px-3 py-2">
+          <button
+            type="button"
+            disabled={loading || !!error || syncFollowing}
+            onClick={() => setScrolling((current) => !current)}
+            className="rounded bg-teal-600 px-3 py-1 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {scrolling ? "Pause" : "Start"}
+          </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            setScrolling(false);
-            containerRef.current?.scrollTo({ top: 0 });
-          }}
-          className="rounded border px-3 py-1 text-xs"
-        >
-          Reset
-        </button>
-
-        <label className="flex items-center gap-2 text-xs">
-          Speed
-          <input
-            type="range"
-            min="5"
-            max="150"
-            step="5"
-            value={speed}
-            onChange={(event) => {
-              const value = Number(event.target.value);
-              setSpeed(value);
-              speedRef.current = value;
+          <button
+            type="button"
+            onClick={() => {
+              setScrolling(false);
+              containerRef.current?.scrollTo({ top: 0 });
             }}
-            className="w-100 cursor-pointer"
-          />
-          <span className="w-16 tabular-nums">{speed} px/s</span>
-        </label>
-      </div>
+            className="rounded border px-3 py-1 text-xs"
+          >
+            Reset
+          </button>
+
+          <label className="flex items-center gap-2 text-xs">
+            Speed
+            <input
+              type="range"
+              min="5"
+              max="150"
+              step="5"
+              value={speed}
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                setSpeed(value);
+                speedRef.current = value;
+              }}
+              className="w-100 cursor-pointer"
+            />
+            <span className="w-16 tabular-nums">{speed} px/s</span>
+          </label>
+        </div>
+      )}
 
       {/* PDF viewer */}
       <div className="relative min-h-0 flex-1">
