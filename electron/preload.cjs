@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("guitarAPI", {
 
   updateSong: (payload) => ipcRenderer.invoke("songs:update", payload),
 
+  deleteSong: (songId) => ipcRenderer.invoke("songs:delete", songId),
+
   // Load saved YouTube synchronization mappings.
   getSongSync: (songId, videoId) =>
     ipcRenderer.invoke("songs:sync:get", {
@@ -40,17 +42,17 @@ contextBridge.exposeInMainWorld("guitarAPI", {
       timings,
     }),
 
-    // PDF–YOUTUBE SYNCHRONIZATION
-getPdfSync: (songId, videoId) =>
-  ipcRenderer.invoke("songs:pdf-sync:get", {
-    songId,
-    videoId,
-  }),
+  // PDF–YOUTUBE SYNCHRONIZATION
+  getPdfSync: (songId, videoId) =>
+    ipcRenderer.invoke("songs:pdf-sync:get", {
+      songId,
+      videoId,
+    }),
 
-savePdfSync: (songId, videoId, timings) =>
-  ipcRenderer.invoke("songs:pdf-sync:save", {
-    songId,
-    videoId,
-    timings,
-  }),
+  savePdfSync: (songId, videoId, timings) =>
+    ipcRenderer.invoke("songs:pdf-sync:save", {
+      songId,
+      videoId,
+      timings,
+    }),
 });

@@ -59,6 +59,7 @@ export default function EditSongPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const isDesktop =
     typeof window !== "undefined" && !!window.guitarAPI?.updateSong;
@@ -296,6 +297,58 @@ export default function EditSongPage() {
 
     URL.revokeObjectURL(url);
   }
+
+ 
+async function handleDeleteSong() {
+  if (deleting || saving || !songId) return;
+
+  const confirmed = window.confirm(
+    `Permanently delete "${title}"?\n\n` +
+      "This removes the song, its PDF, melody bars, " +
+      "and saved YouTube synchronization timings.\n\n" +
+      "This cannot be undone.",
+  );
+
+  if (!confirmed) return;
+
+ const finalConfirmation = window.confirm(
+  `FINAL CONFIRMATION\n\n` +
+    `Delete "${title}" permanently?\n\n` +
+    "All associated data and YouTube timings will be removed.\n\n" +
+    "Click OK only if you are absolutely sure.",
+);
+
+if (!finalConfirmation) return;
+
+  if (!window.guitarAPI?.deleteSong) {
+    setError(
+      "Delete Song is not available in this Electron build. " +
+        "Check preload.cjs and restart Electron.",
+    );
+    return;
+  }
+
+  setDeleting(true);
+  setError("");
+  setMessage("");
+
+  try {
+    const result = await window.guitarAPI.deleteSong(songId);
+
+    if (!result.success) {
+      throw new Error("SQLite did not confirm deletion.");
+    }
+
+    router.replace("/");
+  } catch (err) {
+    setError(
+      err instanceof Error ? err.message : "Could not delete song.",
+    );
+  } finally {
+    setDeleting(false);
+  }
+}
+
 
   async function handleSave() {
     if (!title.trim()) {
@@ -591,6 +644,17 @@ export default function EditSongPage() {
             className="rounded-lg bg-teal-600 px-6 py-3 font-semibold text-white"
           >
             Download Edited JSON
+          </button>
+        )}
+
+        {isDesktop && (
+          <button
+            type="button"
+            onClick={() => void handleDeleteSong()}
+            disabled={saving || deleting || extractingMelody}
+            className="rounded-lg border border-rose-300 bg-rose-50 px-6 py-3 font-semibold text-rose-700 transition-colors hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {deleting ? "Deleting..." : "🗑️ Delete Song"}
           </button>
         )}
       </div>

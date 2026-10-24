@@ -250,6 +250,89 @@ app.whenReady().then(async () => {
       return updateSong(payload);
     });
 
+    ipcMain.handle("songs:delete", (_event, songId) => {
+      if (typeof songId !== "string" || !songId.trim()) {
+        throw new Error("Invalid song ID.");
+      }
+
+      const database = getDatabase();
+
+      // Read the original song and PDF before deleting anything.
+      const song = database
+        .prepare(
+          `SELECT id, title, pdf_filename
+       FROM songs
+       WHERE id = ?`,
+        )
+        .get(songId);
+
+      if (!song) {
+        throw new Error("Song not found.");
+      }
+
+      database.exec("BEGIN IMMEDIATE");
+
+      try {
+        // Explicitly delete timings and bars for this song.
+        database
+          .prepare("DELETE FROM song_video_timings WHERE song_id = ?")
+          .run(songId);
+
+        database
+          .prepare("DELETE FROM song_chord_timings WHERE song_id = ?")
+          .run(songId);
+
+        database
+          .prepare("DELETE FROM song_pdf_timings WHERE song_id = ?")
+          .run(songId);
+
+        database.prepare("DELETE FROM song_bars WHERE song_id = ?").run(songId);
+
+        const result = database
+          .prepare("DELETE FROM songs WHERE id = ?")
+          .run(songId);
+
+        if (result.changes !== 1) {
+          throw new Error("Song deletion was not confirmed.");
+        }
+
+        database.exec("COMMIT");
+      } catch (error) {
+        database.exec("ROLLBACK");
+        throw error;
+      }
+
+      // Delete the physical PDF only AFTER SQLite deletion succeeds.
+      // Never remove a PDF still referenced by another song.
+      if (song.pdf_filename) {
+        const stillUsed = database
+          .prepare(
+            `SELECT COUNT(*) AS count
+         FROM songs
+         WHERE pdf_filename = ?`,
+          )
+          .get(song.pdf_filename);
+
+        if (
+          stillUsed.count === 0 &&
+          path.basename(song.pdf_filename) === song.pdf_filename
+        ) {
+          const pdfFolder = path.join(app.getPath("userData"), "data", "pdfs");
+
+          const pdfPath = path.join(pdfFolder, song.pdf_filename);
+
+          try {
+            fs.rmSync(pdfPath, { force: true });
+          } catch (error) {
+            // The database deletion succeeded; don't report it as failed.
+            console.error("Could not remove deleted song PDF:", error);
+          }
+        }
+      }
+
+      return { success: true, id: songId };
+    });
+
     // -------------------------------------------------------
     // Load YouTube bar synchronization timings
     // -------------------------------------------------------
@@ -548,7 +631,9 @@ app.whenReady().then(async () => {
         .get(songId);
 
       if (!song) {
-        throw new Error("PDF-only song not found. PDF synchronization is available only for PDF and melody songs.");
+        throw new Error(
+          "PDF-only song not found. PDF synchronization is available only for PDF and melody songs.",
+        );
       }
 
       // Validate everything before modifying the database.

@@ -267,4 +267,11 @@ export type GuitarAPI = {
     success: boolean;
     savedCount: number;
   }>;
+
+  deleteSong: (
+  songId: string,
+) => Promise<{
+  success: boolean;
+  id: string;
+}>;
 };
